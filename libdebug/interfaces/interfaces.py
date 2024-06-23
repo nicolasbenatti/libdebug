@@ -8,4 +8,5 @@ from enum import Enum
 
 
 class AvailableInterfaces(Enum):
-    PTRACE = 1
+    PTRACE = 0
+    GDB = 1

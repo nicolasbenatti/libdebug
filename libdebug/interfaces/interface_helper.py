@@ -7,14 +7,16 @@
 from libdebug.interfaces.debugging_interface import DebuggingInterface
 from libdebug.interfaces.interfaces import AvailableInterfaces
 from libdebug.interfaces.ptrace_interface import PtraceInterface
-
+from libdebug.interfaces.gdb_interface import GdbInterface
 
 def provide_debugging_interface(
-    interface: AvailableInterfaces = AvailableInterfaces.PTRACE,
+    interface: AvailableInterfaces = AvailableInterfaces.GDB,
 ) -> DebuggingInterface:
     """Returns an instance of the debugging interface to be used by the `_InternalDebugger` class."""
     match interface:
         case AvailableInterfaces.PTRACE:
             return PtraceInterface()
+        case AvailableInterfaces.GDB:
+            return GdbInterface()
         case _:
             raise NotImplementedError(f"Interface {interface} not available.")
