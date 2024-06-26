@@ -127,7 +127,7 @@ class GdbStubInterface(DebuggingInterface):
 
         # connect to the stub
         self.stub = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.stub.connect(("0.0.0.0", 5000))
+        self.stub.connect(("localhost", 5000))
         stub_info = self.stub.getpeername()
         print(f"connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
 
