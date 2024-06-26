@@ -134,19 +134,19 @@ class GdbStubInterface(DebuggingInterface):
     def cont(self):
         """Continues the execution of the process."""
         # Enable all breakpoints if they were disabled for a single step
-        changed = []
+        # changed = []
 
-        for bp in self.context.breakpoints.values():
-            bp._disabled_for_step = False
-            if bp._changed:
-                changed.append(bp)
-                bp._changed
+        # for bp in self.context.breakpoints.values():
+        #     bp._disabled_for_step = False
+        #     if bp._changed:
+        #         changed.append(bp)
+        #         bp._changed
 
-        for bp in changed:
-            if bp.enabled:
-                self.set_breakpoint(bp, insert=False)
-            else:
-                self.unset_breakpoint(bp, delete=False)
+        # for bp in changed:
+        #     if bp.enabled:
+        #         self.set_breakpoint(bp, insert=False)
+        #     else:
+        #         self.unset_breakpoint(bp, delete=False)
 
         self.stub.send(b"c")
     
@@ -178,7 +178,7 @@ class GdbStubInterface(DebuggingInterface):
     def kill(self):
         # terminate emulated process
         self.stub.send(b"k")
-        socket.close(self.stub)
+        self.stub.close()
         # terminate QEMU instance
         os.kill(self.process_id, signal.SIGKILL)
 
