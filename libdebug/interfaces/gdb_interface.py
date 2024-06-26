@@ -6,7 +6,9 @@
 
 import errno
 import os
+import signal
 import pty
+from time import sleep
 import tty
 from pathlib import Path
 import socket
@@ -25,6 +27,7 @@ from libdebug.state.debugging_context import (
 )
 from libdebug.state.debugging_context import DebuggingContext
 from libdebug.state.thread_context import ThreadContext
+from libdebug.utils import posix_spawn
 from libdebug.utils.debugging_utils import normalize_and_validate_address
 from libdebug.utils.elf_utils import get_entry_point
 from libdebug.utils.pipe_manager import PipeManager
@@ -33,6 +36,20 @@ from libdebug.utils.process_utils import (
     get_process_maps,
     invalidate_process_cache,
 )
+
+
+QEMU_LOCATION = str(
+    (Path("/") / "usr" / "bin" / "qemu-x86_64").resolve()
+)
+
+if hasattr(os, "posix_spawn"):
+    from os import posix_spawn, POSIX_SPAWN_CLOSE, POSIX_SPAWN_DUP2
+else:
+    from libdebug.utils.posix_spawn import (
+        posix_spawn,
+        POSIX_SPAWN_CLOSE,
+        POSIX_SPAWN_DUP2,
+    )
 
 
 class GdbInterface(DebuggingInterface):
@@ -45,7 +62,7 @@ class GdbInterface(DebuggingInterface):
     """The hardware breakpoint managers (one for each thread)."""
 
     process_id: int | None
-    """The process ID of the debugged process."""
+    """The process ID of the QEMU instance"""
 
     stub: socket
     """The socket used to connect to the stub"""
@@ -63,6 +80,56 @@ class GdbInterface(DebuggingInterface):
         self.hardware_bp_helpers = {}
 
         self.reset()
+
+    def run(self):
+        """Runs the specified process."""
+        argv = self.context.argv
+        env = self.context.env
+        env["QEMU_GDB"] = "5000"
+
+        liblog.debugger("Running %s", argv)
+
+        # Creating pipes for stdin, stdout, stderr
+        self.stdin_read, self.stdin_write = os.pipe()
+        self.stdout_read, self.stdout_write = pty.openpty()
+        self.stderr_read, self.stderr_write = pty.openpty()
+
+        # Setting stdout, stderr to raw mode to avoid terminal control codes interfering with the
+        # output
+        tty.setraw(self.stdout_read)
+        tty.setraw(self.stderr_read)
+
+        child_pid = posix_spawn(
+            QEMU_LOCATION,
+            [QEMU_LOCATION] + argv,
+            env,
+            file_actions=[
+                (POSIX_SPAWN_CLOSE, self.stdin_write),
+                (POSIX_SPAWN_CLOSE, self.stdout_read),
+                (POSIX_SPAWN_CLOSE, self.stderr_read),
+                (POSIX_SPAWN_DUP2, self.stdin_read, 0),
+                (POSIX_SPAWN_DUP2, self.stdout_write, 1),
+                (POSIX_SPAWN_DUP2, self.stderr_write, 2),
+                (POSIX_SPAWN_CLOSE, self.stdin_read),
+                (POSIX_SPAWN_CLOSE, self.stdout_write),
+                (POSIX_SPAWN_CLOSE, self.stderr_write),
+            ],
+            setpgroup=0,
+        )
+
+        self.process_id = child_pid
+        self.context.process_id = child_pid
+        self.context.pipe_manager = self._setup_pipe()
+        
+        # don't connect to qemu too fast, the stub may not be there yet
+        # TODO: better handling
+        sleep(0.1)
+
+        # connect to the stub
+        self.stub = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.stub.connect(("0.0.0.0", 5000))
+        stub_info = self.stub.getpeername()
+        print(f"connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
 
     def cont(self):
         """Continues the execution of the process."""
@@ -92,48 +159,6 @@ class GdbInterface(DebuggingInterface):
     def _trace_self(self):
         pass
 
-    def run(self):
-        """Runs the specified process."""
-        argv = self.context.argv
-        env = self.context.env
-
-        liblog.debugger("Running %s", argv)
-
-        # Creating pipes for stdin, stdout, stderr
-        self.stdin_read, self.stdin_write = os.pipe()
-        self.stdout_read, self.stdout_write = pty.openpty()
-        self.stderr_read, self.stderr_write = pty.openpty()
-
-        # Setting stdout, stderr to raw mode to avoid terminal control codes interfering with the
-        # output
-        tty.setraw(self.stdout_read)
-        tty.setraw(self.stderr_read)
-
-        # child_pid = posix_spawn(
-        #     JUMPSTART_LOCATION,
-        #     [JUMPSTART_LOCATION] + argv,
-        #     env,
-        #     file_actions=[
-        #         (POSIX_SPAWN_CLOSE, self.stdin_write),
-        #         (POSIX_SPAWN_CLOSE, self.stdout_read),
-        #         (POSIX_SPAWN_CLOSE, self.stderr_read),
-        #         (POSIX_SPAWN_DUP2, self.stdin_read, 0),
-        #         (POSIX_SPAWN_DUP2, self.stdout_write, 1),
-        #         (POSIX_SPAWN_DUP2, self.stderr_write, 2),
-        #         (POSIX_SPAWN_CLOSE, self.stdin_read),
-        #         (POSIX_SPAWN_CLOSE, self.stdout_write),
-        #         (POSIX_SPAWN_CLOSE, self.stderr_write),
-        #     ],
-        #     setpgroup=0,
-        # )
-
-        self.process_id = child_pid
-        self.context.process_id = child_pid
-        self.register_new_thread(child_pid)
-        continue_to_entry_point = self.context.autoreach_entrypoint
-        self._setup_parent(continue_to_entry_point)
-        self.context.pipe_manager = self._setup_pipe()
-
     def attach(self, port: int):
         """Attaches to the specified process.
 
@@ -149,12 +174,13 @@ class GdbInterface(DebuggingInterface):
         self.process_id = port
         self.context.process_id = port
         print(f"connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
-        # If we are attaching to a process, we don't want to continue to the entry point
-        # which we have probably already passed
-        self._setup_parent(continue_to_entry_point=False)
 
     def kill(self):
+        # terminate emulated process
         self.stub.send(b"k")
+        socket.close(self.stub)
+        # terminate QEMU instance
+        os.kill(self.process_id, signal.SIGKILL)
 
     def step(self, thread: ThreadContext):
         pass
