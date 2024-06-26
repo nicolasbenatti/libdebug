@@ -67,10 +67,15 @@ class GdbStubInterface(DebuggingInterface):
     stub: socket
     """The socket used to connect to the stub"""
 
+    GDB_STUB_PORT: int
+    """Default port of the QEMU gdbstub"""
+
     def __init__(self):
         super().__init__()
 
         self.context = provide_context(self)
+
+        self.GDB_STUB_PORT = 5000
 
         if not self.context.aslr_enabled:
             disable_self_aslr()
@@ -104,15 +109,15 @@ class GdbStubInterface(DebuggingInterface):
             [QEMU_LOCATION] + argv,
             env,
             file_actions=[
-                (POSIX_SPAWN_CLOSE, self.stdin_write),
-                (POSIX_SPAWN_CLOSE, self.stdout_read),
-                (POSIX_SPAWN_CLOSE, self.stderr_read),
-                (POSIX_SPAWN_DUP2, self.stdin_read, 0),
-                (POSIX_SPAWN_DUP2, self.stdout_write, 1),
-                (POSIX_SPAWN_DUP2, self.stderr_write, 2),
-                (POSIX_SPAWN_CLOSE, self.stdin_read),
-                (POSIX_SPAWN_CLOSE, self.stdout_write),
-                (POSIX_SPAWN_CLOSE, self.stderr_write),
+                # (POSIX_SPAWN_CLOSE, self.stdin_write),
+                # (POSIX_SPAWN_CLOSE, self.stdout_read),
+                # (POSIX_SPAWN_CLOSE, self.stderr_read),
+                # (POSIX_SPAWN_DUP2, self.stdin_read, 0),
+                # (POSIX_SPAWN_DUP2, self.stdout_write, 1),
+                # (POSIX_SPAWN_DUP2, self.stderr_write, 2),
+                # (POSIX_SPAWN_CLOSE, self.stdin_read),
+                # (POSIX_SPAWN_CLOSE, self.stdout_write),
+                # (POSIX_SPAWN_CLOSE, self.stderr_write),
             ],
             setpgroup=0,
         )
@@ -127,7 +132,7 @@ class GdbStubInterface(DebuggingInterface):
 
         # connect to the stub
         self.stub = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.stub.connect(("localhost", 5000))
+        self.stub.connect(("localhost", self.GDB_STUB_PORT))
         stub_info = self.stub.getpeername()
         print(f"connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
 
@@ -159,7 +164,7 @@ class GdbStubInterface(DebuggingInterface):
     def _trace_self(self):
         pass
 
-    def attach(self, port: int):
+    def attach(self, pid: int):
         """Attaches to the specified process.
 
         Args:
@@ -169,10 +174,13 @@ class GdbStubInterface(DebuggingInterface):
         # the port at which the stub is listening to, not the PID.
         
         self.stub = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.stub.connect(("localhost", port))
+        try:
+            self.stub.connect(("localhost", self.GDB_STUB_PORT))
+        except Exception as e:
+            raise Exception("Error when connecting to GDB stub")
         stub_info = self.stub.getpeername()
-        self.process_id = port
-        self.context.process_id = port
+        self.process_id = pid
+        self.context.process_id = pid
         print(f"connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
 
     def kill(self):
