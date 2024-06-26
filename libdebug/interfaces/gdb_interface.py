@@ -52,7 +52,7 @@ else:
     )
 
 
-class GdbInterface(DebuggingInterface):
+class GdbStubInterface(DebuggingInterface):
     """The interface used by `_InternalDebugger` to communicate with the `gdb` debugging backend."""
 
     context: DebuggingContext
