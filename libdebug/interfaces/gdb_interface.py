@@ -135,6 +135,23 @@ class GdbStubInterface(DebuggingInterface):
         self.stub.connect(("localhost", self.GDB_STUB_PORT))
         stub_info = self.stub.getpeername()
         print(f"connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
+        self.send_ack()
+
+        # enable supported features
+        cmd = self._prepare_stub_packet(b'qSupported:multiprocess+;swbreak+;hwbreak+;qRelocInsn+;fork-events+;vfork-events+;exec-events+;vContSupported+;QThreadEvents+;no-resumed+')
+        self.stub.send(cmd)
+        resp = self.stub.recv(1)
+        print("1.received: ")
+        print(resp)
+
+        resp = self.stub.recv(1000)
+        print("2.received: ")
+        print(resp)
+        
+        self.send_ack()
+
+        # fetch register file
+        # self._fetch_register_file()
 
     def cont(self):
         """Continues the execution of the process."""
@@ -153,10 +170,36 @@ class GdbStubInterface(DebuggingInterface):
         #     else:
         #         self.unset_breakpoint(bp, delete=False)
 
-        self.stub.send(b"c")
+        cmd = self._prepare_stub_packet(b"c")
+        self.stub.send(cmd)
     
     def reset(self):
         pass
+    
+    def send_ack(self):
+        self.stub.send(b'+')
+
+    def _prepare_stub_packet(self, data: bytes):
+        payload = b'$' + data + b'#'
+        payloadv = [bytes([b]) for b in data]
+        checksum = 0
+
+        for b in payloadv:
+            checksum = checksum + ord(b)
+        checksum = checksum % 256
+        hexum = hex(checksum)
+        print("checksum for the packet is %s" % hexum)
+
+        # NOTE: checksum is 1 Byte, but must be expressed as a 2-digit hex number
+        return payload + bytes(hexum[2:4], "ascii")
+
+    def _fetch_register_file(self):
+        """Query the stub and fetch value of registers"""
+        cmd = self._prepare_stub_packet(b'g')
+        self.stub.send(cmd)
+        reg_file = self.stub.recv(1000)
+        print(f"received:")
+        print(reg_file)
 
     def _set_options(self):
         pass
