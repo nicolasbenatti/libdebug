@@ -210,7 +210,10 @@ class GdbStubInterface(DebuggingInterface):
         pass
 
     def get_register_holder(self, thread_id: int) -> RegisterHolder:
-        pass
+        """Returns the current value of all the available registers.
+        Note: the register holder should then be used to automatically setup getters and setters for each register.
+        """
+        raise RuntimeError("This method should never be called.")
 
     def wait(self) -> bool:
         pass
