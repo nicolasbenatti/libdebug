@@ -30,6 +30,11 @@ from libdebug.state.debugging_context import (
 from libdebug.state.debugging_context import DebuggingContext
 from libdebug.state.thread_context import ThreadContext
 from libdebug.utils import posix_spawn
+from libdebug.gdb_stub.gdb_stub_utils import (
+    send_ack,
+    prepare_stub_packet,
+    receive_stub_packet
+)
 from libdebug.utils.debugging_utils import normalize_and_validate_address
 from libdebug.utils.elf_utils import get_entry_point
 from libdebug.utils.pipe_manager import PipeManager
@@ -136,58 +141,35 @@ class GdbStubInterface(DebuggingInterface):
         self.stub = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.stub.connect(("localhost", self.GDB_STUB_PORT))
         stub_info = self.stub.getpeername()
-        print(f"connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
-        self.send_ack()
+        print(f"Connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
+        send_ack(self.stub)
 
         # enable supported features
-        cmd = self._prepare_stub_packet(b'qSupported:multiprocess+;swbreak+;hwbreak+;qRelocInsn+;fork-events+;vfork-events+;exec-events+;vContSupported+;QThreadEvents+;no-resumed+')
+        cmd = prepare_stub_packet(b'qSupported:multiprocess+;swbreak+;hwbreak+;qRelocInsn+;fork-events+;vfork-events+;exec-events+;vContSupported+;QThreadEvents+;no-resumed+')
         self.stub.send(cmd)
-        resp = self.stub.recv(1)
-        print("1.received: ")
-        print(resp)
+        resp = receive_stub_packet(self.stub)
 
-        resp = self.stub.recv(1000)
-        print("2.received: ")
-        print(resp)
-        
-        self.send_ack()
-
-        cmd = self._prepare_stub_packet(b'qXfer:features:read:target.xml:0,ffb')
+        cmd = prepare_stub_packet(b'qXfer:features:read:target.xml:0,ffb')
         self.stub.send(cmd)
-        resp = self.stub.recv(1)
-        # print("ACK/NACK received: ")
-        # print(resp)
-
-        resp = self.stub.recv(1000)
-        # print("payload received: ")
-        # print(resp)
-
-        self.send_ack()
+        resp = receive_stub_packet(self.stub)
 
         offset = b'0'
         data = b''
         nbytes = 0
         # TODO: we may not want a fixed no. of iterations
         for i in range(4):
-            cmd = self._prepare_stub_packet(b'qXfer:features:read:i386-64bit.xml:'+offset+b',ffb')
+            cmd = prepare_stub_packet(b'qXfer:features:read:i386-64bit.xml:'+offset+b',ffb')
             self.stub.send(cmd)
-            resp = self.stub.recv(1)
-            # print("1.received: ")
-            # print(resp)
-
-            resp = self.stub.recv(3000)
-            nbytes += len(resp)-5
-            # print("2.received: %d" % nbytes)
-            # print(resp)
-            data += resp[2:-3]
+            resp = receive_stub_packet(self.stub)
+            # strip initial 'm' (part of payload)
+            data += resp[1:]
             
-            self.send_ack()
-
+            nbytes += len(resp)-1
             offset = bytes(hex(nbytes)[2:], "ascii")
 
         data = data.decode('ascii')
-        #print("target description")
-        #print(data)
+        print("target description")
+        print(data)
 
         # fetch register file
         register_order = Amd64RegisterParser.parse(data)
@@ -219,32 +201,15 @@ class GdbStubInterface(DebuggingInterface):
         #     else:
         #         self.unset_breakpoint(bp, delete=False)
 
-        cmd = self._prepare_stub_packet(b"c")
+        cmd = prepare_stub_packet(b"c")
         self.stub.send(cmd)
     
     def reset(self):
         pass
-    
-    def send_ack(self):
-        self.stub.send(b'+')
-
-    def _prepare_stub_packet(self, data: bytes):
-        payload = b'$' + data + b'#'
-        payloadv = [bytes([b]) for b in data]
-        checksum = 0
-
-        for b in payloadv:
-            checksum = checksum + ord(b)
-        checksum = checksum % 256
-        hexum = hex(checksum)
-        print("checksum for the packet is %s" % hexum)
-
-        # NOTE: checksum is 1 Byte, but must be expressed as a 2-digit hex number
-        return payload + bytes(hexum[2:4], "ascii")
 
     def _fetch_register_file(self, register_order: list):
         """Query the stub and fetch value of registers"""
-        cmd = self._prepare_stub_packet(b'g')
+        cmd = prepare_stub_packet(b'g')
         self.stub.send(cmd)
 
         ack = self.stub.recv(1)
@@ -264,7 +229,7 @@ class GdbStubInterface(DebuggingInterface):
             setattr(register_file, reg.name, value)
             blobIndex = blobIndex + stride
 
-        self.send_ack()
+        send_ack(self.stub)
 
         return register_file
 
