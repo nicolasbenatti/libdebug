@@ -52,3 +52,17 @@ class PtraceRegisterHolder(RegisterHolder):
     """
 
     register_file: object
+
+@dataclass
+class GdbRegisterHolder(RegisterHolder):
+    """An abstract class that holds the state of the registers of a process, specifically for the `GDB` debugging backend.
+
+    This class should not be instantiated directly, but rather through the `register_holder_provider` function.
+
+    Attributes:
+        register_file (object): The content of the register file of the process, as returned by the `GDB` stub.
+        register_order (list): A list which specifies the order in which register data is listed by the stub
+    """
+
+    register_file: object
+    register_order: list

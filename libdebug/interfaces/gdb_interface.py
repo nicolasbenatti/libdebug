@@ -17,6 +17,8 @@ from libdebug.architectures.register_helper import register_holder_provider
 from libdebug.data.breakpoint import Breakpoint
 from libdebug.data.memory_map import MemoryMap
 from libdebug.data.register_holder import RegisterHolder
+from libdebug.architectures.amd64.amd64_gdb_register_holder import Amd64RegisterParser
+from libdebug.architectures.amd64.amd64_gdb_register_holder import Amd64GdbRegisterHolder
 from libdebug.data.syscall_hook import SyscallHook
 from libdebug.interfaces.debugging_interface import DebuggingInterface
 from libdebug.liblog import liblog
@@ -150,8 +152,55 @@ class GdbStubInterface(DebuggingInterface):
         
         self.send_ack()
 
+        cmd = self._prepare_stub_packet(b'qXfer:features:read:target.xml:0,ffb')
+        self.stub.send(cmd)
+        resp = self.stub.recv(1)
+        # print("ACK/NACK received: ")
+        # print(resp)
+
+        resp = self.stub.recv(1000)
+        # print("payload received: ")
+        # print(resp)
+
+        self.send_ack()
+
+        offset = b'0'
+        data = b''
+        nbytes = 0
+        # TODO: we may not want a fixed no. of iterations
+        for i in range(4):
+            cmd = self._prepare_stub_packet(b'qXfer:features:read:i386-64bit.xml:'+offset+b',ffb')
+            self.stub.send(cmd)
+            resp = self.stub.recv(1)
+            # print("1.received: ")
+            # print(resp)
+
+            resp = self.stub.recv(3000)
+            nbytes += len(resp)-5
+            # print("2.received: %d" % nbytes)
+            # print(resp)
+            data += resp[2:-3]
+            
+            self.send_ack()
+
+            offset = bytes(hex(nbytes)[2:], "ascii")
+
+        data = data.decode('ascii')
+        #print("target description")
+        #print(data)
+
         # fetch register file
-        # self._fetch_register_file()
+        register_order = Amd64RegisterParser.parse(data)
+        register_file = self._fetch_register_file(register_order)
+
+        register_holder = Amd64GdbRegisterHolder(register_file, register_order)
+
+        with context_extend_from(self):
+            thread = ThreadContext.new(child_pid, register_holder)
+        
+        link_context(thread, self)
+        self.context.insert_new_thread(thread)
+
 
     def cont(self):
         """Continues the execution of the process."""
@@ -193,13 +242,31 @@ class GdbStubInterface(DebuggingInterface):
         # NOTE: checksum is 1 Byte, but must be expressed as a 2-digit hex number
         return payload + bytes(hexum[2:4], "ascii")
 
-    def _fetch_register_file(self):
+    def _fetch_register_file(self, register_order: list):
         """Query the stub and fetch value of registers"""
         cmd = self._prepare_stub_packet(b'g')
         self.stub.send(cmd)
-        reg_file = self.stub.recv(1000)
-        print(f"received:")
-        print(reg_file)
+
+        ack = self.stub.recv(1)
+
+        reg_blob = self.stub.recv(1000)
+        reg_blob = reg_blob[2:]
+
+        # slice the chunk with a 64bit stride to get
+        # register values
+        blobIndex = 0
+        register_file = lambda: None
+        for reg in register_order:
+            stride = int((reg.size / 8) * 2)
+            slice = reg_blob[blobIndex : blobIndex+stride]
+            value = int(slice, 16)
+            print("%s = %s" % (reg.name, hex(value)))
+            setattr(register_file, reg.name, value)
+            blobIndex = blobIndex + stride
+
+        self.send_ack()
+
+        return register_file
 
     def _set_options(self):
         pass
