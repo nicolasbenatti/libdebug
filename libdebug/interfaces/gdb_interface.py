@@ -211,11 +211,7 @@ class GdbStubInterface(DebuggingInterface):
         """Query the stub and fetch value of registers"""
         cmd = prepare_stub_packet(b'g')
         self.stub.send(cmd)
-
-        ack = self.stub.recv(1)
-
-        reg_blob = self.stub.recv(1000)
-        reg_blob = reg_blob[2:]
+        reg_blob = receive_stub_packet(self.stub)
 
         # slice the chunk with a 64bit stride to get
         # register values
@@ -227,8 +223,6 @@ class GdbStubInterface(DebuggingInterface):
             value = int(slice, 16)
             print("%s [%d] = %s" % (reg.name, reg.offset, hex(value)))
             setattr(register_file, reg.name, value)
-
-        send_ack(self.stub)
 
         return register_file
 
