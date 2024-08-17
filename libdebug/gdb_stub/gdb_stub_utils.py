@@ -43,6 +43,6 @@ def receive_stub_packet(sck: socket):
     send_ack(sck)
 
     # strip control bytes & checksum
-    resp = resp[1: -3]
+    resp = resp[1 : -3]
 
     return resp
