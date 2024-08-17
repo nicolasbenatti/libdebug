@@ -251,7 +251,7 @@ class GdbStubInterface(DebuggingInterface):
         try:
             self.stub.connect(("localhost", self.GDB_STUB_PORT))
         except Exception as e:
-            raise Exception("Error when connecting to GDB stub")
+            raise Exception("Error when connecting to GDB stub, maybe QEMU is down?")
         stub_info = self.stub.getpeername()
         self.process_id = pid
         self.context.process_id = pid
