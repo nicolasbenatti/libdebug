@@ -10,8 +10,9 @@ from dataclasses import dataclass
 
 @dataclass
 class RegisterInfo:
-    index: int
-    """Index of the register. It's used to correctly parse data coming from the stub."""
+    offset: int
+    """Byte offset of the register. It's used to correctly parse data coming from the stub.
+    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Packets.html#Packets for info"""
 
     name: str
     """Shorthand for the register. (e.g. RAX)"""
@@ -20,7 +21,7 @@ class RegisterInfo:
     """Register size in bits."""
 
     def __init__(self, idx: int, name: str, size: int):
-        self.index = idx
+        self.offset = idx
         self.name = name
         self.size = size
 
