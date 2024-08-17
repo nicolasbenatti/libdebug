@@ -238,7 +238,7 @@ class GdbStubInterface(DebuggingInterface):
     def _trace_self(self):
         pass
 
-    def attach(self, pid: int):
+    def attach(self, port: int):
         """Attaches to the specified process.
 
         Args:
@@ -253,9 +253,47 @@ class GdbStubInterface(DebuggingInterface):
         except Exception as e:
             raise Exception("Error when connecting to GDB stub, maybe QEMU is down?")
         stub_info = self.stub.getpeername()
-        self.process_id = pid
-        self.context.process_id = pid
+        self.context.process_id = port
         print(f"connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
+
+        # enable supported features
+        cmd = prepare_stub_packet(b'qSupported:multiprocess+;swbreak+;hwbreak+;qRelocInsn+;fork-events+;vfork-events+;exec-events+;vContSupported+;QThreadEvents+;no-resumed+')
+        self.stub.send(cmd)
+        resp = receive_stub_packet(self.stub)
+
+        cmd = prepare_stub_packet(b'qXfer:features:read:target.xml:0,ffb')
+        self.stub.send(cmd)
+        resp = receive_stub_packet(self.stub)
+
+        offset = b'0'
+        data = b''
+        nbytes = 0
+        # TODO: we may not want a fixed no. of iterations
+        for i in range(4):
+            cmd = prepare_stub_packet(b'qXfer:features:read:i386-64bit.xml:'+offset+b',ffb')
+            self.stub.send(cmd)
+            resp = receive_stub_packet(self.stub)
+            # strip initial 'm' (part of payload)
+            data += resp[1:]
+            
+            nbytes += len(resp)-1
+            offset = bytes(hex(nbytes)[2:], "ascii")
+
+        data = data.decode('ascii')
+        print("target description")
+        print(data)
+
+        register_parser = register_parser_provider()
+        register_info = register_parser.parse(data)
+        register_file = self._fetch_register_file(register_info)
+
+        register_holder = Amd64GdbRegisterHolder(register_file, register_info)
+
+        with context_extend_from(self):
+            thread = ThreadContext.new(port, register_holder)
+        
+        link_context(thread, self)
+        self.context.insert_new_thread(thread)
 
     def kill(self):
         # terminate emulated process
