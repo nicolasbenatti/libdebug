@@ -17,8 +17,8 @@ from libdebug.architectures.register_helper import register_holder_provider
 from libdebug.data.breakpoint import Breakpoint
 from libdebug.data.memory_map import MemoryMap
 from libdebug.data.register_holder import RegisterHolder
-from libdebug.architectures.amd64.amd64_gdb_register_holder import Amd64RegisterParser
 from libdebug.architectures.amd64.amd64_gdb_register_holder import Amd64GdbRegisterHolder
+from libdebug.gdb_stub.register_parser_helper import register_parser_provider
 from libdebug.data.syscall_hook import SyscallHook
 from libdebug.interfaces.debugging_interface import DebuggingInterface
 from libdebug.liblog import liblog
@@ -171,11 +171,11 @@ class GdbStubInterface(DebuggingInterface):
         print("target description")
         print(data)
 
-        # fetch register file
-        register_order = Amd64RegisterParser.parse(data)
-        register_file = self._fetch_register_file(register_order)
+        register_parser = register_parser_provider()
+        register_info = register_parser.parse(data)
+        register_file = self._fetch_register_file(register_info)
 
-        register_holder = Amd64GdbRegisterHolder(register_file, register_order)
+        register_holder = Amd64GdbRegisterHolder(register_file, register_info)
 
         with context_extend_from(self):
             thread = ThreadContext.new(child_pid, register_holder)

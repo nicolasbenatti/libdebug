@@ -8,6 +8,10 @@ from xml.dom.minidom import parseString
 from dataclasses import dataclass
 
 from libdebug.data.register_holder import GdbRegisterHolder
+from libdebug.gdb_stub.register_parser import (
+    RegisterInfoParser,
+    RegisterInfo
+)
 from libdebug.utils.register_utils import (
     get_reg_8h,
     get_reg_8l,
@@ -20,6 +24,7 @@ from libdebug.utils.register_utils import (
     set_reg_32,
     set_reg_64,
 )
+
 
 AMD64_GP_REGS = ["a", "b", "c", "d"]
 
@@ -57,21 +62,15 @@ AMD64_REGS = [
     "gs",
 ]
 
-
-class Amd64RegisterParser:
-    """A class that provides static methods for extracting register order from the Target Description"""
+class Amd64RegisterInfoParser(RegisterInfoParser):
+    """A class that provides static methods for extracting register order from the Target Description
+    of an x86_64 process."""
 
     @staticmethod
     def parse(data: str):
-        """Parses a valid target description XML, returning an object
-           containing relevant registers in the same ordering the stub
-           will send register data 
-
-        Args:
-            data (String): ASCII string containing the XML received from the stub     
-        """
         document = parseString(data)
         
+        reg_index = 0
         reg_order = list()
         regs = document.getElementsByTagName("reg")
         for reg in regs:
