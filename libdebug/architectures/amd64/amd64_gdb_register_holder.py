@@ -70,17 +70,17 @@ class Amd64RegisterInfoParser(RegisterInfoParser):
     def parse(data: str):
         document = parseString(data)
         
-        reg_index = 0
+        reg_offset = 0
         reg_order = list()
         regs = document.getElementsByTagName("reg")
         for reg in regs:
             name = reg.getAttribute("name")
             size = int(reg.getAttribute("bitsize"))
             if name in AMD64_REGS:
-                item = lambda: None
-                item.name = name
-                item.size = size
+                item = RegisterInfo(reg_offset, name, size)
                 reg_order.append(item)
+            
+            reg_offset += int(size / 8)
         
         return reg_order
 

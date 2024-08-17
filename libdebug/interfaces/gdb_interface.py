@@ -219,15 +219,14 @@ class GdbStubInterface(DebuggingInterface):
 
         # slice the chunk with a 64bit stride to get
         # register values
-        blobIndex = 0
         register_file = lambda: None
         for reg in register_info:
             stride = int((reg.size / 8) * 2)
-            slice = reg_blob[blobIndex : blobIndex+stride]
+            offset = reg.offset * 2
+            slice = reg_blob[offset : offset+stride]
             value = int(slice, 16)
-            print("%s = %s" % (reg.name, hex(value)))
+            print("%s [%d] = %s" % (reg.name, reg.offset, hex(value)))
             setattr(register_file, reg.name, value)
-            blobIndex = blobIndex + stride
 
         send_ack(self.stub)
 
