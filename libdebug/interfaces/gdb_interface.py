@@ -207,7 +207,7 @@ class GdbStubInterface(DebuggingInterface):
     def reset(self):
         pass
 
-    def _fetch_register_file(self, register_order: list):
+    def _fetch_register_file(self, register_info: list):
         """Query the stub and fetch value of registers"""
         cmd = prepare_stub_packet(b'g')
         self.stub.send(cmd)
@@ -221,7 +221,7 @@ class GdbStubInterface(DebuggingInterface):
         # register values
         blobIndex = 0
         register_file = lambda: None
-        for reg in register_order:
+        for reg in register_info:
             stride = int((reg.size / 8) * 2)
             slice = reg_blob[blobIndex : blobIndex+stride]
             value = int(slice, 16)
