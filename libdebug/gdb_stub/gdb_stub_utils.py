@@ -6,6 +6,8 @@
 
 import socket
 
+from libdebug.gdb_stub.gdb_stub_callbacks_helper import gdb_stub_callback_provider
+
 
 def send_ack(sck: socket):
     sck.send(b'+')
@@ -28,7 +30,7 @@ def prepare_stub_packet(data: bytes):
     # NOTE: checksum is 1 Byte, but must be expressed as a 2-digit hex number
     return payload + bytes(hexum[2:4], "ascii")
 
-def receive_stub_packet(sck: socket):
+def receive_stub_packet(cmd: str, sck: socket):
     """Handles the reception of a packet from GDB stub.
     See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Overview.html#Overview for info"""
     # receive ACK/NACK
@@ -42,7 +44,10 @@ def receive_stub_packet(sck: socket):
     resp = sck.recv(3000)
     send_ack(sck)
 
-    # strip control bytes & checksum
-    resp = resp[1 : -3]
+    # extract data (or just strip control bytes if callback
+    # not available)
+    callback = gdb_stub_callback_provider(cmd)
+    print(callback)
+    data = callback(resp)
 
-    return resp
+    return data

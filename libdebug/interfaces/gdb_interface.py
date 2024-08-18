@@ -145,22 +145,27 @@ class GdbStubInterface(DebuggingInterface):
         send_ack(self.stub)
 
         # enable supported features
-        cmd = prepare_stub_packet(b'qSupported:multiprocess+;swbreak+;hwbreak+;qRelocInsn+;fork-events+;vfork-events+;exec-events+;vContSupported+;QThreadEvents+;no-resumed+')
-        self.stub.send(cmd)
-        resp = receive_stub_packet(self.stub)
+        cmd = b'qSupported:multiprocess+;swbreak+;hwbreak+;qRelocInsn+;fork-events+;vfork-events+;exec-events+;vContSupported+;QThreadEvents+;no-resumed+'
+        self.stub.send(prepare_stub_packet(cmd))
+        resp = receive_stub_packet(cmd, self.stub)
 
-        cmd = prepare_stub_packet(b'qXfer:features:read:target.xml:0,ffb')
-        self.stub.send(cmd)
-        resp = receive_stub_packet(self.stub)
+        cmd = b'qC'
+        self.stub.send(prepare_stub_packet(cmd))
+        resp = receive_stub_packet(cmd, self.stub)
+        print(resp)
+
+        cmd = b'qXfer:features:read:target.xml:0,ffb'
+        self.stub.send(prepare_stub_packet(cmd))
+        resp = receive_stub_packet(cmd, self.stub)
 
         offset = b'0'
         data = b''
         nbytes = 0
         # TODO: we may not want a fixed no. of iterations
         for i in range(4):
-            cmd = prepare_stub_packet(b'qXfer:features:read:i386-64bit.xml:'+offset+b',ffb')
-            self.stub.send(cmd)
-            resp = receive_stub_packet(self.stub)
+            cmd = b'qXfer:features:read:i386-64bit.xml:'+offset+b',ffb'
+            self.stub.send(prepare_stub_packet(cmd))
+            resp = receive_stub_packet(cmd, self.stub)
             # strip initial 'm' (part of payload)
             data += resp[1:]
             
@@ -198,9 +203,9 @@ class GdbStubInterface(DebuggingInterface):
         #     else:
         #         self.unset_breakpoint(bp, delete=False)
 
-        cmd = prepare_stub_packet(b"vCont;c")
-        self.stub.send(cmd)
-        resp = receive_stub_packet(self.stub)
+        cmd = b"vCont;c"
+        self.stub.send(prepare_stub_packet(cmd))
+        resp = receive_stub_packet(cmd, self.stub)
         print("Got [%d]:" % len(resp))
         print(resp)
 
@@ -209,9 +214,9 @@ class GdbStubInterface(DebuggingInterface):
 
     def _fetch_register_file(self, register_info: list):
         """Query the stub and fetch value of registers"""
-        cmd = prepare_stub_packet(b'g')
-        self.stub.send(cmd)
-        reg_blob = receive_stub_packet(self.stub)
+        cmd = b'g'
+        self.stub.send(prepare_stub_packet(cmd))
+        reg_blob = receive_stub_packet(cmd, self.stub)
 
         # slice the chunk with a 64bit stride to get
         # register values
@@ -251,22 +256,26 @@ class GdbStubInterface(DebuggingInterface):
         print(f"connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
 
         # enable supported features
-        cmd = prepare_stub_packet(b'qSupported:multiprocess+;swbreak+;hwbreak+;qRelocInsn+;fork-events+;vfork-events+;exec-events+;vContSupported+;QThreadEvents+;no-resumed+')
-        self.stub.send(cmd)
-        resp = receive_stub_packet(self.stub)
+        cmd = b'qSupported:multiprocess+;swbreak+;hwbreak+;qRelocInsn+;fork-events+;vfork-events+;exec-events+;vContSupported+;QThreadEvents+;no-resumed+'
+        self.stub.send(prepare_stub_packet(cmd))
+        resp = receive_stub_packet(cmd, self.stub)
 
-        cmd = prepare_stub_packet(b'qXfer:features:read:target.xml:0,ffb')
-        self.stub.send(cmd)
-        resp = receive_stub_packet(self.stub)
+        cmd = b'qC'
+        self.stub.send(prepare_stub_packet(cmd))
+        resp = receive_stub_packet(cmd, self.stub)
+
+        cmd = b'qXfer:features:read:target.xml:0,ffb'
+        self.stub.send(prepare_stub_packet(cmd))
+        resp = receive_stub_packet(cmd, self.stub)
 
         offset = b'0'
         data = b''
         nbytes = 0
         # TODO: we may not want a fixed no. of iterations
         for i in range(4):
-            cmd = prepare_stub_packet(b'qXfer:features:read:i386-64bit.xml:'+offset+b',ffb')
-            self.stub.send(cmd)
-            resp = receive_stub_packet(self.stub)
+            cmd = b'qXfer:features:read:i386-64bit.xml:'+offset+b',ffb'
+            self.stub.send(prepare_stub_packet(cmd))
+            resp = receive_stub_packet(cmd, self.stub)
             # strip initial 'm' (part of payload)
             data += resp[1:]
             
