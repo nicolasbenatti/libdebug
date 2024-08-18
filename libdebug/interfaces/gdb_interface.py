@@ -201,9 +201,12 @@ class GdbStubInterface(DebuggingInterface):
         #     else:
         #         self.unset_breakpoint(bp, delete=False)
 
-        cmd = prepare_stub_packet(b"c")
+        cmd = prepare_stub_packet(b"vCont;c")
         self.stub.send(cmd)
-    
+        resp = receive_stub_packet(self.stub)
+        print("Got [%d]:" % len(resp))
+        print(resp)
+
     def reset(self):
         pass
 
