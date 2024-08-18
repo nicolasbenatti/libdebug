@@ -274,8 +274,6 @@ class GdbStubInterface(DebuggingInterface):
             offset = bytes(hex(nbytes)[2:], "ascii")
 
         data = data.decode('ascii')
-        print("target description")
-        print(data)
 
         register_parser = register_parser_provider()
         register_info = register_parser.parse(data)
@@ -291,7 +289,9 @@ class GdbStubInterface(DebuggingInterface):
 
     def kill(self):
         # terminate emulated process
-        self.stub.send(b"k")
+        bpid = bytes(f'{self.process_id:x}', 'ascii')
+        self.stub.send(b"vKill:" + bpid)
+        sleep(0.1)
         self.stub.close()
         # terminate QEMU instance
         os.kill(self.process_id, signal.SIGKILL)
