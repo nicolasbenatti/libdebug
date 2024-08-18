@@ -168,8 +168,6 @@ class GdbStubInterface(DebuggingInterface):
             offset = bytes(hex(nbytes)[2:], "ascii")
 
         data = data.decode('ascii')
-        print("target description")
-        print(data)
 
         register_parser = register_parser_provider()
         register_info = register_parser.parse(data)
@@ -179,10 +177,9 @@ class GdbStubInterface(DebuggingInterface):
 
         with context_extend_from(self):
             thread = ThreadContext.new(child_pid, register_holder)
-        
+
         link_context(thread, self)
         self.context.insert_new_thread(thread)
-
 
     def cont(self):
         """Continues the execution of the process."""
