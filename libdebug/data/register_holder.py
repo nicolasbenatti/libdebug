@@ -61,8 +61,8 @@ class GdbRegisterHolder(RegisterHolder):
 
     Attributes:
         register_file (object): The content of the register file of the process, as returned by the `GDB` stub.
-        register_order (list): A list which specifies the order in which register data is listed by the stub
+        register_info (list): A list containing information about registers, e.g. name, size, ...
     """
 
     register_file: object
-    register_order: list
+    register_info: list
