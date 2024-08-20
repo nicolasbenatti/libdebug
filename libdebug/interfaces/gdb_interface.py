@@ -93,6 +93,17 @@ class GdbStubInterface(DebuggingInterface):
 
         self.reset()
 
+    def register_new_thread(self, new_thread_id: int, register_info: list):
+        register_file = self._fetch_register_file(register_info)
+
+        register_holder = Amd64GdbRegisterHolder(register_file, register_info)
+
+        with context_extend_from(self):
+            thread = ThreadContext.new(new_thread_id, register_holder)
+
+        link_context(thread, self)
+        self.context.insert_new_thread(thread)
+
     def run(self):
         """Runs the specified process."""
         argv = self.context.argv
@@ -176,15 +187,8 @@ class GdbStubInterface(DebuggingInterface):
 
         register_parser = register_parser_provider()
         register_info = register_parser.parse(data)
-        register_file = self._fetch_register_file(register_info)
-
-        register_holder = Amd64GdbRegisterHolder(register_file, register_info)
-
-        with context_extend_from(self):
-            thread = ThreadContext.new(child_pid, register_holder)
-
-        link_context(thread, self)
-        self.context.insert_new_thread(thread)
+        
+        self.register_new_thread(child_pid, register_info)
 
     def cont(self):
         """Continues the execution of the process."""
@@ -286,15 +290,8 @@ class GdbStubInterface(DebuggingInterface):
 
         register_parser = register_parser_provider()
         register_info = register_parser.parse(data)
-        register_file = self._fetch_register_file(register_info)
-
-        register_holder = Amd64GdbRegisterHolder(register_file, register_info)
-
-        with context_extend_from(self):
-            thread = ThreadContext.new(port, register_holder)
         
-        link_context(thread, self)
-        self.context.insert_new_thread(thread)
+        self.register_new_thread(port, register_info)
 
     def kill(self):
         # terminate emulated process
