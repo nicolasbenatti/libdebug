@@ -350,8 +350,42 @@ class GdbStubInterface(DebuggingInterface):
         pass
 
     def peek_memory(self, address: int) -> int:
-        pass
+        """Reads the memory at the specified address."""
+        cmd = b'm'+bytes(hex(address), 'ascii')+b',8w'
+        self.stub.send(prepare_stub_packet(cmd))
+        resp = receive_stub_packet(cmd, self.stub)
+
+        if resp == b'E22' or resp == b'E14':
+            raise RuntimeError(f"Cannot read memory at address %#x" % address)
+
+        return int(resp, 16)
 
     def poke_memory(self, address: int, data: int):
+        """Writes the memory at the specified address."""
+        cmd = b'M'+bytes(hex(address), 'ascii')+b',8w:'+bytes(hex(data), 'ascii')
+        self.stub.send(prepare_stub_packet(cmd))
+        resp = receive_stub_packet(cmd, self.stub)
+
+        if resp == b'E22' or resp == b'E14':
+            raise RuntimeError(f"Cannot write memory at address %#x" % address)
+
+    def _peek_user(self, thread_id: int, address: int) -> int:
         pass
-    
+
+    def _poke_user(self, thread_id: int, address: int, value: int):
+        pass
+
+    def maps(self) -> list[MemoryMap]:
+        """Returns the memory maps of the process."""
+        assert self.process_id is not None
+
+        # NOTE: QEMU gdbstub implementation doesn't currently support
+        # reading memory maps from a process/thread. Therefore return a
+        # dummy map so not to make already existing logic fail
+        start = 0x0000000000000000
+        end = 0xffffffffffffffff
+        permissions = "rwxp"
+        size = end
+        int_offset = 0x00000000
+        backing_file = ""    
+        return [MemoryMap(start, end, permissions, size, int_offset, backing_file)]
