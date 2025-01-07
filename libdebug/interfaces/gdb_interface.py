@@ -60,7 +60,7 @@ else:
 
 
 class GdbStubInterface(DebuggingInterface):
-    """The interface used by `_InternalDebugger` to communicate with the `gdb` debugging backend."""
+    """The interface used by `_InternalDebugger` to communicate with the `GDB` debugging backend."""
 
     context: DebuggingContext
     """The debugging context."""
@@ -95,7 +95,8 @@ class GdbStubInterface(DebuggingInterface):
 
     def register_new_thread(self, new_thread_id: int, register_info: list):
         register_file = self._fetch_register_file(register_info)
-
+        
+        # TODO: integrate with `register_holder_provider` method
         register_holder = Amd64GdbRegisterHolder(register_file, register_info)
 
         with context_extend_from(self):
@@ -127,15 +128,15 @@ class GdbStubInterface(DebuggingInterface):
             [QEMU_LOCATION] + argv,
             env,
             file_actions=[
-                # (POSIX_SPAWN_CLOSE, self.stdin_write),
-                # (POSIX_SPAWN_CLOSE, self.stdout_read),
-                # (POSIX_SPAWN_CLOSE, self.stderr_read),
-                # (POSIX_SPAWN_DUP2, self.stdin_read, 0),
-                # (POSIX_SPAWN_DUP2, self.stdout_write, 1),
-                # (POSIX_SPAWN_DUP2, self.stderr_write, 2),
-                # (POSIX_SPAWN_CLOSE, self.stdin_read),
-                # (POSIX_SPAWN_CLOSE, self.stdout_write),
-                # (POSIX_SPAWN_CLOSE, self.stderr_write),
+                (POSIX_SPAWN_CLOSE, self.stdin_write),
+                (POSIX_SPAWN_CLOSE, self.stdout_read),
+                (POSIX_SPAWN_CLOSE, self.stderr_read),
+                (POSIX_SPAWN_DUP2, self.stdin_read, 0),
+                (POSIX_SPAWN_DUP2, self.stdout_write, 1),
+                (POSIX_SPAWN_DUP2, self.stderr_write, 2),
+                (POSIX_SPAWN_CLOSE, self.stdin_read),
+                (POSIX_SPAWN_CLOSE, self.stdout_write),
+                (POSIX_SPAWN_CLOSE, self.stderr_write),
             ],
             setpgroup=0,
         )
@@ -210,8 +211,6 @@ class GdbStubInterface(DebuggingInterface):
         cmd = b"vCont;c"
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
-        print("Got [%d]:" % len(resp))
-        print(resp)
 
     def reset(self):
         pass
@@ -230,7 +229,6 @@ class GdbStubInterface(DebuggingInterface):
             offset = reg.offset * 2
             slice = reg_blob[offset : offset+stride]
             value = int(slice, 16)
-            print("%s [%d] = %s" % (reg.name, reg.offset, hex(value)))
             setattr(register_file, reg.name, value)
 
         return register_file
@@ -249,7 +247,7 @@ class GdbStubInterface(DebuggingInterface):
         """
         # TODO: when attaching to a process with GDB stub, we actually specify
         # the port at which the stub is listening to, not the PID.
-        
+ 
         self.stub = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.stub.connect(("localhost", self.GDB_STUB_PORT))
@@ -257,10 +255,10 @@ class GdbStubInterface(DebuggingInterface):
             raise Exception("Error when connecting to GDB stub, maybe QEMU is down?")
         stub_info = self.stub.getpeername()
         self.context.process_id = port
-        print(f"connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
+        print(f"Connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
 
         # enable supported features
-        cmd = b'qSupported:multiprocess+;swbreak+;hwbreak+;qRelocInsn+;fork-events+;vfork-events+;exec-events+;vContSupported+;QThreadEvents+;no-resumed+'
+        cmd = b'qSupported:multiprocess+;swbreak+;hwbreak+;fork-events+;vfork-events+;exec-events+;vContSupported+;QThreadEvents+;no-resumed+'
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
 
@@ -290,7 +288,7 @@ class GdbStubInterface(DebuggingInterface):
 
         register_parser = register_parser_provider()
         register_info = register_parser.parse(data)
-        
+
         self.register_new_thread(port, register_info)
 
     def kill(self):

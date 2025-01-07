@@ -69,7 +69,7 @@ class Amd64RegisterInfoParser(RegisterInfoParser):
     @staticmethod
     def parse(data: str):
         document = parseString(data)
-        
+
         reg_offset = 0
         reg_order = list()
         regs = document.getElementsByTagName("reg")
@@ -79,12 +79,10 @@ class Amd64RegisterInfoParser(RegisterInfoParser):
             if name in AMD64_REGS:
                 item = RegisterInfo(reg_offset, name, size)
                 reg_order.append(item)
-            
+
             reg_offset += int(size / 8)
         
         return reg_order
-
-        
 
 @dataclass
 class Amd64GdbRegisterHolder(GdbRegisterHolder):

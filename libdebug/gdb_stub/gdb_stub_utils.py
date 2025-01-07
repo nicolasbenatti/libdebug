@@ -47,7 +47,6 @@ def receive_stub_packet(cmd: str, sck: socket):
     # extract data (or just strip control bytes if callback
     # not available)
     callback = gdb_stub_callback_provider(cmd)
-    print(callback)
     data = callback(resp)
 
     return data
