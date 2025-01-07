@@ -33,7 +33,7 @@ class GdbStubCallbacks:
             pid_tid.tid = int(tmp[1], 16)
         else:
             resp = resp[2:]
-            resp.tid = int(resp, 16)
-            resp.pid = None
+            pid_tid.tid = int(resp, 16)
+            pid_tid.pid = None
 
         return pid_tid
