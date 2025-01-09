@@ -13,6 +13,12 @@ import tty
 from pathlib import Path
 import socket
 
+from libdebug.architectures.gdb_hardware_breakpoint_manager import (
+    GdbHardwareBreakpointManager,
+)
+from libdebug.architectures.gdb_hardware_breakpoint_provider import (
+    gdb_hardware_breakpoint_manager_provider,
+)
 from libdebug.architectures.register_helper import register_holder_provider
 from libdebug.data.breakpoint import Breakpoint
 from libdebug.data.memory_map import MemoryMap
@@ -65,7 +71,7 @@ class GdbStubInterface(DebuggingInterface):
     context: DebuggingContext
     """The debugging context."""
 
-    # hardware_bp_helpers: dict[int, PtraceHardwareBreakpointManager]
+    hardware_bp_helpers: dict[int, GdbHardwareBreakpointManager]
     """The hardware breakpoint managers (one for each thread)."""
 
     process_id: int | None
@@ -104,6 +110,13 @@ class GdbStubInterface(DebuggingInterface):
 
         link_context(thread, self)
         self.context.insert_new_thread(thread)
+        thread_hw_bp_helper = gdb_hardware_breakpoint_manager_provider(thread, self.context)
+        self.hardware_bp_helpers[new_thread_id] = thread_hw_bp_helper
+
+        # For any hardware breakpoints, we need to reapply them to the new thread
+        for bp in self.context.breakpoints.values():
+            if bp.hardware:
+                thread_hw_bp_helper.install_breakpoint(bp)
 
     def run(self):
         """Runs the specified process."""
@@ -194,19 +207,19 @@ class GdbStubInterface(DebuggingInterface):
     def cont(self):
         """Continues the execution of the process."""
         # Enable all breakpoints if they were disabled for a single step
-        # changed = []
+        changed = []
 
-        # for bp in self.context.breakpoints.values():
-        #     bp._disabled_for_step = False
-        #     if bp._changed:
-        #         changed.append(bp)
-        #         bp._changed
+        for bp in self.context.breakpoints.values():
+            bp._disabled_for_step = False
+            if bp._changed:
+                changed.append(bp)
+                bp._changed
 
-        # for bp in changed:
-        #     if bp.enabled:
-        #         self.set_breakpoint(bp, insert=False)
-        #     else:
-        #         self.unset_breakpoint(bp, delete=False)
+        for bp in changed:
+            if bp.enabled:
+                self.set_breakpoint(bp, insert=False)
+            else:
+                self.unset_breakpoint(bp, delete=False)
 
         cmd = b"vCont;c"
         self.stub.send(prepare_stub_packet(cmd))
@@ -334,14 +347,65 @@ class GdbStubInterface(DebuggingInterface):
     def migrate_from_gdb(self):
         pass
 
-    def maps(self) -> list[MemoryMap]:
-        pass
+    def _set_sw_breakpoint(self, breakpoint: Breakpoint):
+        """Sets a software breakpoint at the specified address.
 
-    def set_breakpoint(self, breakpoint: Breakpoint):
-        pass
+        Args:
+            breakpoint (Breakpoint): The breakpoint to set.
+        """
+        cmd = b'Z0,'+bytes(hex(breakpoint.address), 'ascii')+b',0'
+        self.stub.send(prepare_stub_packet(cmd))
+        resp = receive_stub_packet(cmd, self.stub)
 
-    def unset_breakpoint(self, breakpoint: Breakpoint):
-        pass
+        if resp != b'OK':
+            raise RuntimeError(f"Cannot insert breakpoint at address %#x" % breakpoint.address)
+
+    def _unset_sw_breakpoint(self, breakpoint: Breakpoint):
+        """Unsets a software breakpoint at the specified address.
+
+        Args:
+            breakpoint (Breakpoint): The breakpoint to unset.
+        """
+        cmd = b'z0,'+bytes(hex(breakpoint.address), 'ascii')+b',0'
+        self.stub.send(prepare_stub_packet(cmd))
+        resp = receive_stub_packet(cmd, self.stub)
+
+        if resp != b'OK':
+            raise RuntimeError(f"Cannot remove breakpoint at address %#x" % breakpoint.address)
+
+    def set_breakpoint(self, breakpoint: Breakpoint, insert: bool = True):
+        """Sets a breakpoint at the specified address.
+
+        Args:
+            breakpoint (Breakpoint): The breakpoint to set.
+        """
+        if breakpoint.hardware:
+            for helper in self.hardware_bp_helpers.values():
+                helper.install_breakpoint(breakpoint)
+        else:
+            # NOTE: GDB remote protocol offers no way to enable breakpoints.
+            # Therefore, enabling == inserting
+            self._set_sw_breakpoint(breakpoint)
+
+        if insert:
+            self.context.insert_new_breakpoint(breakpoint)
+
+    def unset_breakpoint(self, breakpoint: Breakpoint, delete: bool = True):
+        """Restores the breakpoint at the specified address.
+
+        Args:
+            breakpoint (Breakpoint): The breakpoint to unset.
+        """
+        if breakpoint.hardware:
+            for helper in self.hardware_bp_helpers.values():
+                helper.remove_breakpoint(breakpoint)
+        else:
+            # NOTE: GDB remote protocol offers no way to disable breakpoints.
+            # Therefore, disabling == removing
+            self._unset_sw_breakpoint(breakpoint)
+
+        if delete:
+            self.context.remove_breakpoint(breakpoint)
 
     def set_syscall_hook(self, hook: SyscallHook):
         pass
