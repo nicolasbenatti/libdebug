@@ -99,24 +99,18 @@ class GdbStubInterface(DebuggingInterface):
 
         self.reset()
 
-    def register_new_thread(self, new_thread_id: int, register_info: list):
-        register_file = self._fetch_register_file(register_info)
-        
-        # TODO: integrate with `register_holder_provider` method
-        register_holder = Amd64GdbRegisterHolder(register_file, register_info)
+    def reset(self):
+        """Resets the state of the interface."""
+        # TODO
+        pass
 
-        with context_extend_from(self):
-            thread = ThreadContext.new(new_thread_id, register_holder)
+    def _set_options(self):
+        """Sets the tracer options."""
+        pass
 
-        link_context(thread, self)
-        self.context.insert_new_thread(thread)
-        thread_hw_bp_helper = gdb_hardware_breakpoint_manager_provider(thread, self.context)
-        self.hardware_bp_helpers[new_thread_id] = thread_hw_bp_helper
-
-        # For any hardware breakpoints, we need to reapply them to the new thread
-        for bp in self.context.breakpoints.values():
-            if bp.hardware:
-                thread_hw_bp_helper.install_breakpoint(bp)
+    def _trace_self(self):
+        """Traces the current process."""
+        pass
 
     def run(self):
         """Runs the specified process."""
@@ -158,18 +152,18 @@ class GdbStubInterface(DebuggingInterface):
         self.context.process_id = child_pid
         self.context.pipe_manager = self._setup_pipe()
         
-        # don't connect to qemu too fast, the stub may not be there yet
+        # Don't connect to qemu too fast, the stub may not be there yet
         # TODO: better handling
         sleep(0.1)
 
-        # connect to the stub
+        # Connect to the stub
         self.stub = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.stub.connect(("localhost", self.GDB_STUB_PORT))
         stub_info = self.stub.getpeername()
         print(f"Connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
         send_ack(self.stub)
 
-        # enable supported features
+        # Enable supported features
         cmd = b'qSupported:multiprocess+;swbreak+;hwbreak+;qRelocInsn+;fork-events+;vfork-events+;exec-events+;vContSupported+;QThreadEvents+;no-resumed+'
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
@@ -186,12 +180,12 @@ class GdbStubInterface(DebuggingInterface):
         offset = b'0'
         data = b''
         nbytes = 0
-        # TODO: we may not want a fixed no. of iterations
+        # TODO: We may not want a fixed no. of iterations
         for i in range(4):
             cmd = b'qXfer:features:read:i386-64bit.xml:'+offset+b',ffb'
             self.stub.send(prepare_stub_packet(cmd))
             resp = receive_stub_packet(cmd, self.stub)
-            # strip initial 'm' (part of payload)
+            # Strip initial 'm' (part of payload)
             data += resp[1:]
             
             nbytes += len(resp)-1
@@ -203,6 +197,69 @@ class GdbStubInterface(DebuggingInterface):
         register_info = register_parser.parse(data)
         
         self.register_new_thread(child_pid, register_info)
+
+    def attach(self, port: int):
+        """Attaches to the specified process.
+
+        Args:
+            port (int): the port at which the stub is listening.
+        """
+        # TODO: When attaching to a process with GDB stub, we actually specify
+        # the port at which the stub is listening to, not the PID.
+ 
+        self.stub = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            self.stub.connect(("localhost", self.GDB_STUB_PORT))
+        except Exception as e:
+            raise Exception("Error when connecting to GDB stub, maybe QEMU is down?")
+        stub_info = self.stub.getpeername()
+        self.context.process_id = port
+        print(f"Connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
+
+        # Enable supported features
+        cmd = b'qSupported:multiprocess+;swbreak+;hwbreak+;fork-events+;vfork-events+;exec-events+;vContSupported+;QThreadEvents+;no-resumed+'
+        self.stub.send(prepare_stub_packet(cmd))
+        resp = receive_stub_packet(cmd, self.stub)
+
+        cmd = b'qC'
+        self.stub.send(prepare_stub_packet(cmd))
+        resp = receive_stub_packet(cmd, self.stub)
+
+        cmd = b'qXfer:features:read:target.xml:0,ffb'
+        self.stub.send(prepare_stub_packet(cmd))
+        resp = receive_stub_packet(cmd, self.stub)
+
+        offset = b'0'
+        data = b''
+        nbytes = 0
+        # TODO: We may not want a fixed no. of iterations
+        for i in range(4):
+            cmd = b'qXfer:features:read:i386-64bit.xml:'+offset+b',ffb'
+            self.stub.send(prepare_stub_packet(cmd))
+            resp = receive_stub_packet(cmd, self.stub)
+            # Strip initial 'm' (part of payload)
+            data += resp[1:]
+            
+            nbytes += len(resp)-1
+            offset = bytes(hex(nbytes)[2:], "ascii")
+
+        data = data.decode('ascii')
+
+        register_parser = register_parser_provider()
+        register_info = register_parser.parse(data)
+
+        self.register_new_thread(port, register_info)
+
+    def kill(self):
+        """Instantly terminates the process."""
+        assert self.process_id is not None
+
+        bpid = bytes(f'{self.process_id:x}', 'ascii')
+        self.stub.send(b"vKill:" + bpid)
+        sleep(0.1)
+        self.stub.close()
+        # Terminate QEMU instance
+        os.kill(self.process_id, signal.SIGKILL)
 
     def cont(self):
         """Continues the execution of the process."""
@@ -225,8 +282,82 @@ class GdbStubInterface(DebuggingInterface):
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
 
-    def reset(self):
+    def step(self, thread: ThreadContext):
+        """Executes a single instruction of the process."""
+        # TODO
         pass
+
+    def step_until(self, thread: ThreadContext, address: int, max_steps: int):
+        """Executes instructions of the specified thread until the specified address is reached.
+
+        Args:
+            thread (ThreadContext): The thread to step.
+            address (int): The address to reach.
+            max_steps (int): The maximum number of steps to execute.
+        """
+        # TODO
+        pass
+
+    def _setup_pipe(self):
+        """
+        Sets up the pipe manager for the child process.
+
+        Close the read end for stdin and the write ends for stdout and stderr
+        in the parent process since we are going to write to stdin and read from
+        stdout and stderr
+        """
+        try:
+            os.close(self.stdin_read)
+            os.close(self.stdout_write)
+            os.close(self.stderr_write)
+        except Exception as e:
+            # TODO: Custom exception
+            raise Exception("Closing fds failed: %r" % e)
+        return PipeManager(self.stdin_write, self.stdout_read, self.stderr_read)
+
+    def _setup_parent(self, continue_to_entry_point: bool):
+        """
+        Sets up the parent process after the child process has been created or attached to.
+        """
+        pass
+
+    def get_register_holder(self, thread_id: int) -> RegisterHolder:
+        """Returns the current value of all the available registers.
+        Note: the register holder should then be used to automatically setup getters and setters for each register.
+        """
+        raise RuntimeError("This method should never be called.")
+
+    def wait(self) -> bool:
+        # TODO
+        pass
+
+    def migrate_to_gdb(self):
+        """Migrates the current process to GDB."""
+        pass
+
+    def migrate_from_gdb(self):
+        """Migrates the current process from GDB."""
+        pass
+
+    def register_new_thread(self, new_thread_id: int, register_info: list):
+        """Registers a new thread."""
+        register_file = self._fetch_register_file(register_info)
+        
+        # TODO: Integrate with `register_holder_provider` method
+        register_holder = Amd64GdbRegisterHolder(register_file, register_info)
+
+        with context_extend_from(self):
+            thread = ThreadContext.new(new_thread_id, register_holder)
+
+        link_context(thread, self)
+        self.context.insert_new_thread(thread)
+        thread_hw_bp_helper = gdb_hardware_breakpoint_manager_provider(thread, self.context)
+        self.hardware_bp_helpers[new_thread_id] = thread_hw_bp_helper
+
+        # For any hardware breakpoints, we need to reapply them to the new thread
+        for bp in self.context.breakpoints.values():
+            if bp.hardware:
+                thread_hw_bp_helper.install_breakpoint(bp)
 
     def _fetch_register_file(self, register_info: list):
         """Query the stub and fetch value of registers"""
@@ -234,7 +365,7 @@ class GdbStubInterface(DebuggingInterface):
         self.stub.send(prepare_stub_packet(cmd))
         reg_blob = receive_stub_packet(cmd, self.stub)
 
-        # slice the chunk with a 64bit stride to get
+        # Slice the chunk with a 64bit stride to get
         # register values
         register_file = lambda: None
         for reg in register_info:
@@ -246,106 +377,12 @@ class GdbStubInterface(DebuggingInterface):
 
         return register_file
 
-    def _set_options(self):
-        pass
+    def unregister_thread(self, thread_id: int):
+        """Unregisters a thread."""
+        self.context.set_thread_as_dead(thread_id)
 
-    def _trace_self(self):
-        pass
-
-    def attach(self, port: int):
-        """Attaches to the specified process.
-
-        Args:
-            port (int): the port at which the stub is listening.
-        """
-        # TODO: when attaching to a process with GDB stub, we actually specify
-        # the port at which the stub is listening to, not the PID.
- 
-        self.stub = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            self.stub.connect(("localhost", self.GDB_STUB_PORT))
-        except Exception as e:
-            raise Exception("Error when connecting to GDB stub, maybe QEMU is down?")
-        stub_info = self.stub.getpeername()
-        self.context.process_id = port
-        print(f"Connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
-
-        # enable supported features
-        cmd = b'qSupported:multiprocess+;swbreak+;hwbreak+;fork-events+;vfork-events+;exec-events+;vContSupported+;QThreadEvents+;no-resumed+'
-        self.stub.send(prepare_stub_packet(cmd))
-        resp = receive_stub_packet(cmd, self.stub)
-
-        cmd = b'qC'
-        self.stub.send(prepare_stub_packet(cmd))
-        resp = receive_stub_packet(cmd, self.stub)
-
-        cmd = b'qXfer:features:read:target.xml:0,ffb'
-        self.stub.send(prepare_stub_packet(cmd))
-        resp = receive_stub_packet(cmd, self.stub)
-
-        offset = b'0'
-        data = b''
-        nbytes = 0
-        # TODO: we may not want a fixed no. of iterations
-        for i in range(4):
-            cmd = b'qXfer:features:read:i386-64bit.xml:'+offset+b',ffb'
-            self.stub.send(prepare_stub_packet(cmd))
-            resp = receive_stub_packet(cmd, self.stub)
-            # strip initial 'm' (part of payload)
-            data += resp[1:]
-            
-            nbytes += len(resp)-1
-            offset = bytes(hex(nbytes)[2:], "ascii")
-
-        data = data.decode('ascii')
-
-        register_parser = register_parser_provider()
-        register_info = register_parser.parse(data)
-
-        self.register_new_thread(port, register_info)
-
-    def kill(self):
-        # terminate emulated process
-        bpid = bytes(f'{self.process_id:x}', 'ascii')
-        self.stub.send(b"vKill:" + bpid)
-        sleep(0.1)
-        self.stub.close()
-        # terminate QEMU instance
-        os.kill(self.process_id, signal.SIGKILL)
-
-    def step(self, thread: ThreadContext):
-        pass
-
-    def step_until(self, thread: ThreadContext, address: int, max_steps: int):
-        pass
-
-    def _setup_pipe(self):
-        try:
-            os.close(self.stdin_read)
-            os.close(self.stdout_write)
-            os.close(self.stderr_write)
-        except Exception as e:
-            # TODO: custom exception
-            raise Exception("Closing fds failed: %r" % e)
-        return PipeManager(self.stdin_write, self.stdout_read, self.stderr_read)
-
-    def _setup_parent(self, continue_to_entry_point: bool):
-        pass
-
-    def get_register_holder(self, thread_id: int) -> RegisterHolder:
-        """Returns the current value of all the available registers.
-        Note: the register holder should then be used to automatically setup getters and setters for each register.
-        """
-        raise RuntimeError("This method should never be called.")
-
-    def wait(self) -> bool:
-        pass
-
-    def migrate_to_gdb(self):
-        pass
-
-    def migrate_from_gdb(self):
-        pass
+        # Remove the hardware breakpoint manager for the thread
+        self.hardware_bp_helpers.pop(thread_id)
 
     def _set_sw_breakpoint(self, breakpoint: Breakpoint):
         """Sets a software breakpoint at the specified address.
@@ -408,9 +445,21 @@ class GdbStubInterface(DebuggingInterface):
             self.context.remove_breakpoint(breakpoint)
 
     def set_syscall_hook(self, hook: SyscallHook):
+        """Sets a syscall hook.
+
+        Args:
+            hook (SyscallHook): The syscall hook to set.
+        """
+        # TODO
         pass
 
     def unset_syscall_hook(self, hook: SyscallHook):
+        """Unsets a syscall hook.
+
+        Args:
+            hook (SyscallHook): The syscall hook to unset.
+        """
+        # TODO
         pass
 
     def peek_memory(self, address: int) -> int:
@@ -433,12 +482,6 @@ class GdbStubInterface(DebuggingInterface):
         if resp == b'E22' or resp == b'E14':
             raise RuntimeError(f"Cannot write memory at address %#x" % address)
 
-    def _peek_user(self, thread_id: int, address: int) -> int:
-        pass
-
-    def _poke_user(self, thread_id: int, address: int, value: int):
-        pass
-
     def maps(self) -> list[MemoryMap]:
         """Returns the memory maps of the process."""
         assert self.process_id is not None
@@ -451,5 +494,5 @@ class GdbStubInterface(DebuggingInterface):
         permissions = "rwxp"
         size = end
         int_offset = 0x00000000
-        backing_file = ""    
+        backing_file = ""
         return [MemoryMap(start, end, permissions, size, int_offset, backing_file)]
