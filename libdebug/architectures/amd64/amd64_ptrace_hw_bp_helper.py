@@ -33,7 +33,8 @@ AMD64_DBREGS_COUNT = 4
 
 
 class Amd64PtraceHardwareBreakpointManager(PtraceHardwareBreakpointManager):
-    """A hardware breakpoint manager for the amd64 architecture.
+    """A hardware breakpoint manager for the amd64 architecture,
+    specifically for the `ptrace` debugging backend.
 
     Attributes:
         thread (ThreadContext): The target thread.
