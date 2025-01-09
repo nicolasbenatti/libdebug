@@ -7,7 +7,7 @@
 class GdbStubCallbacks:
     """A class that provides callbacks for the most common commands of GDB stub.
     The callbacks are meant to be called upon reception of a packet and allow to 
-    interpret its content in order to extract meaningful data
+    interpret its content in order to extract meaningful data.
     
     e.g. the command `qC` returns current thread id, in the format
     `QCp<pid>.<tid>`, the callback will return an object with
@@ -24,7 +24,8 @@ class GdbStubCallbacks:
         tid: process TID
         pid: process PID"""
         resp = GdbStubCallbacks.default_callback(resp)
-        
+
+        # Add attributes on-the-fly with lambdas
         pid_tid = lambda: None
         if b'p' in resp:
             resp = resp[3:]

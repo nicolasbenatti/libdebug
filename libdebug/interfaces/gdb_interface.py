@@ -83,6 +83,12 @@ class GdbStubInterface(DebuggingInterface):
     GDB_STUB_PORT: int
     """Default port of the QEMU gdbstub"""
 
+    syscall_hooks_enabled: bool
+    """Whether syscall hooks are enabled for the current context or not."""
+
+    is_attached_process: bool
+    """Whether libdebug was attached to a running stub or directly spawned the QEMU instance"""
+
     def __init__(self):
         super().__init__()
 
@@ -114,6 +120,8 @@ class GdbStubInterface(DebuggingInterface):
 
     def run(self):
         """Runs the specified process."""
+        self.is_attached_process = False
+
         argv = self.context.argv
         env = self.context.env
         env["QEMU_GDB"] = "5000"
@@ -148,8 +156,8 @@ class GdbStubInterface(DebuggingInterface):
             setpgroup=0,
         )
 
-        self.process_id = child_pid
-        self.context.process_id = child_pid
+        """ self.process_id = child_pid
+        self.context.process_id = child_pid """
         self.context.pipe_manager = self._setup_pipe()
         
         # Don't connect to qemu too fast, the stub may not be there yet
@@ -171,7 +179,9 @@ class GdbStubInterface(DebuggingInterface):
         cmd = b'qC'
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
-        print(resp)
+        self.process_id = resp.pid
+        self.context.process_id = resp.pid
+        thread_id = resp.tid
 
         cmd = b'qXfer:features:read:target.xml:0,ffb'
         self.stub.send(prepare_stub_packet(cmd))
@@ -196,7 +206,7 @@ class GdbStubInterface(DebuggingInterface):
         register_parser = register_parser_provider()
         register_info = register_parser.parse(data)
         
-        self.register_new_thread(child_pid, register_info)
+        self.register_new_thread(thread_id, register_info)
 
     def attach(self, port: int):
         """Attaches to the specified process.
@@ -206,7 +216,8 @@ class GdbStubInterface(DebuggingInterface):
         """
         # TODO: When attaching to a process with GDB stub, we actually specify
         # the port at which the stub is listening to, not the PID.
- 
+        
+        self.is_attached_process = True
         self.stub = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.stub.connect(("localhost", self.GDB_STUB_PORT))
@@ -224,6 +235,9 @@ class GdbStubInterface(DebuggingInterface):
         cmd = b'qC'
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
+        self.process_id = resp.pid
+        self.context.process_id = resp.pid
+        thread_id = resp.tid
 
         cmd = b'qXfer:features:read:target.xml:0,ffb'
         self.stub.send(prepare_stub_packet(cmd))
@@ -248,18 +262,20 @@ class GdbStubInterface(DebuggingInterface):
         register_parser = register_parser_provider()
         register_info = register_parser.parse(data)
 
-        self.register_new_thread(port, register_info)
+        self.register_new_thread(thread_id, register_info)
 
     def kill(self):
         """Instantly terminates the process."""
         assert self.process_id is not None
 
-        bpid = bytes(f'{self.process_id:x}', 'ascii')
-        self.stub.send(b"vKill:" + bpid)
-        sleep(0.1)
-        self.stub.close()
-        # Terminate QEMU instance
-        os.kill(self.process_id, signal.SIGKILL)
+        cmd = b'vKill;'+bytes(hex(self.process_id), 'ascii')[2:]
+        self.stub.send(prepare_stub_packet(cmd))
+        resp = receive_stub_packet(cmd, self.stub)
+        if resp == b"OK":
+            self.stub.close()
+            if self.is_attached_process == False:
+                # Wait for the child QEMU instance to terminate
+                os.waitpid(self.process_id, 0)
 
     def cont(self):
         """Continues the execution of the process."""
@@ -350,6 +366,7 @@ class GdbStubInterface(DebuggingInterface):
             thread = ThreadContext.new(new_thread_id, register_holder)
 
         link_context(thread, self)
+
         self.context.insert_new_thread(thread)
         thread_hw_bp_helper = gdb_hardware_breakpoint_manager_provider(thread, self.context)
         self.hardware_bp_helpers[new_thread_id] = thread_hw_bp_helper
