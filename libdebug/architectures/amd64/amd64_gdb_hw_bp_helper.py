@@ -43,7 +43,12 @@ class Amd64GdbHardwareBreakpointManager(GdbHardwareBreakpointManager):
         if self.breakpoint_count >= AMD64_DBREGS_COUNT:
             raise RuntimeError("No more hardware breakpoints available.")
 
-        cmd = b'Z1,'+bytes(hex(bp.address), 'ascii')+b',0'
+        if bp.length > 1:
+            len = bytes(hex(bp.length), 'ascii')[2:]
+        else:
+            len = b'0'
+
+        cmd = b'Z1,'+bytes(hex(bp.address), 'ascii')+b','+len
         self.context.debugging_interface.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.context.debugging_interface.stub)
         print(resp)
@@ -60,7 +65,12 @@ class Amd64GdbHardwareBreakpointManager(GdbHardwareBreakpointManager):
         if self.breakpoint_count <= 0:
             raise RuntimeError("No more hardware breakpoints to remove.")
 
-        cmd = b'z1,'+bytes(hex(bp.address), 'ascii')+b',0'
+        if bp.length > 1:
+            len = bytes(hex(bp.length), 'ascii')[2:]
+        else:
+            len = b'0'
+
+        cmd = b'z1,'+bytes(hex(bp.address), 'ascii')+b','+len
         self.context.debugging_interface.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.context.debugging_interface.stub)
         print(resp)
