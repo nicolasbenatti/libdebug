@@ -50,3 +50,11 @@ def receive_stub_packet(cmd: str, sck: socket):
     data = callback(resp)
 
     return data
+
+def int2hexbstr(n: int, nbytes: int = 0) -> int:
+    """Coverts an integer into a Byte-converted hexstring
+    
+    Args:
+        n (int): the number to convert.
+        nbytes (int, optional): number of output digits. Defaults to 0 (= not specified)."""
+    return bytes(f"{n:0{nbytes}x}", 'ascii')

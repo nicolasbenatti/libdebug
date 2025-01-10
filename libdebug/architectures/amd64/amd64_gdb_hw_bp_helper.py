@@ -12,7 +12,8 @@ from libdebug.liblog import liblog
 from libdebug.state.thread_context import ThreadContext
 from libdebug.gdb_stub.gdb_stub_utils import (
     prepare_stub_packet,
-    receive_stub_packet
+    receive_stub_packet,
+    int2hexbstr
 )
 from libdebug.state.debugging_context import DebuggingContext
 
@@ -43,12 +44,9 @@ class Amd64GdbHardwareBreakpointManager(GdbHardwareBreakpointManager):
         if self.breakpoint_count >= AMD64_DBREGS_COUNT:
             raise RuntimeError("No more hardware breakpoints available.")
 
-        if bp.length > 1:
-            len = bytes(hex(bp.length), 'ascii')[2:]
-        else:
-            len = b'0'
+        len = int2hexbstr(bp.length if bp.length > 1 else 0)
 
-        cmd = b'Z1,'+bytes(hex(bp.address), 'ascii')+b','+len
+        cmd = b'Z1,'+int2hexbstr(bp.address)+b','+len
         self.context.debugging_interface.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.context.debugging_interface.stub)
         print(resp)
@@ -65,12 +63,9 @@ class Amd64GdbHardwareBreakpointManager(GdbHardwareBreakpointManager):
         if self.breakpoint_count <= 0:
             raise RuntimeError("No more hardware breakpoints to remove.")
 
-        if bp.length > 1:
-            len = bytes(hex(bp.length), 'ascii')[2:]
-        else:
-            len = b'0'
+        len = int2hexbstr(bp.length if bp.length > 1 else 0)
 
-        cmd = b'z1,'+bytes(hex(bp.address), 'ascii')+b','+len
+        cmd = b'z1,'+int2hexbstr(bp.address)+b','+len
         self.context.debugging_interface.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.context.debugging_interface.stub)
         print(resp)

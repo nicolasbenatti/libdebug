@@ -39,7 +39,8 @@ from libdebug.utils import posix_spawn
 from libdebug.gdb_stub.gdb_stub_utils import (
     send_ack,
     prepare_stub_packet,
-    receive_stub_packet
+    receive_stub_packet,
+    int2hexbstr
 )
 from libdebug.utils.debugging_utils import normalize_and_validate_address
 from libdebug.utils.elf_utils import get_entry_point
@@ -199,7 +200,7 @@ class GdbStubInterface(DebuggingInterface):
             data += resp[1:]
             
             nbytes += len(resp)-1
-            offset = bytes(hex(nbytes)[2:], "ascii")
+            offset = int2hexbstr(nbytes)
 
         data = data.decode('ascii')
 
@@ -255,7 +256,7 @@ class GdbStubInterface(DebuggingInterface):
             data += resp[1:]
             
             nbytes += len(resp)-1
-            offset = bytes(hex(nbytes)[2:], "ascii")
+            offset = int2hexbstr(nbytes)
 
         data = data.decode('ascii')
 
@@ -268,7 +269,7 @@ class GdbStubInterface(DebuggingInterface):
         """Instantly terminates the process."""
         assert self.process_id is not None
 
-        cmd = b'vKill;'+bytes(hex(self.process_id), 'ascii')[2:]
+        cmd = b'vKill;'+int2hexbstr(self.process_id)
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
         if resp == b"OK":
@@ -407,7 +408,7 @@ class GdbStubInterface(DebuggingInterface):
         Args:
             breakpoint (Breakpoint): The breakpoint to set.
         """
-        cmd = b'Z0,'+bytes(hex(breakpoint.address), 'ascii')+b',0'
+        cmd = b'Z0,'+int2hexbstr(breakpoint.address)+b',0'
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
 
@@ -420,7 +421,7 @@ class GdbStubInterface(DebuggingInterface):
         Args:
             breakpoint (Breakpoint): The breakpoint to unset.
         """
-        cmd = b'z0,'+bytes(hex(breakpoint.address), 'ascii')+b',0'
+        cmd = b'z0,'+int2hexbstr(breakpoint.address)+b',0'
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
 
@@ -481,7 +482,7 @@ class GdbStubInterface(DebuggingInterface):
 
     def peek_memory(self, address: int) -> int:
         """Reads the memory at the specified address."""
-        cmd = b'm'+bytes(hex(address), 'ascii')+b',8w'
+        cmd = b'm'+int2hexbstr(address)+b',8w'
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
 
@@ -492,7 +493,7 @@ class GdbStubInterface(DebuggingInterface):
 
     def poke_memory(self, address: int, data: int):
         """Writes the memory at the specified address."""
-        cmd = b'M'+bytes(hex(address), 'ascii')+b',8w:'+bytes(hex(data), 'ascii')
+        cmd = b'M'+int2hexbstr(address)+b',8w:'+int2hexbstr(data)
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
 
