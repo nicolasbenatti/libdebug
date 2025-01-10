@@ -25,6 +25,7 @@ from libdebug.data.memory_map import MemoryMap
 from libdebug.data.register_holder import RegisterHolder
 from libdebug.architectures.amd64.amd64_gdb_register_holder import Amd64GdbRegisterHolder
 from libdebug.gdb_stub.register_parser_helper import register_parser_provider
+from libdebug.gdb_stub.register_parser import RegisterInfo
 from libdebug.data.syscall_hook import SyscallHook
 from libdebug.interfaces.debugging_interface import DebuggingInterface
 from libdebug.liblog import liblog
@@ -75,6 +76,9 @@ class GdbStubInterface(DebuggingInterface):
 
     hardware_bp_helpers: dict[int, GdbHardwareBreakpointManager]
     """The hardware breakpoint managers (one for each thread)."""
+
+    register_holder: RegisterHolder = None
+    """Tells the interface how to parse the register blob coming from the stub."""
 
     process_id: int | None
     """The process ID of the QEMU instance"""
@@ -206,9 +210,9 @@ class GdbStubInterface(DebuggingInterface):
         data = data.decode('ascii')
 
         register_parser = register_parser_provider()
-        register_info = register_parser.parse(data)
+        registers_info = register_parser.parse(data)
         
-        self.register_new_thread(thread_id, register_info)
+        self.register_new_thread(thread_id, registers_info)
 
     def attach(self, port: int):
         """Attaches to the specified process.
@@ -262,9 +266,9 @@ class GdbStubInterface(DebuggingInterface):
         data = data.decode('ascii')
 
         register_parser = register_parser_provider()
-        register_info = register_parser.parse(data)
+        registers_info = register_parser.parse(data)
 
-        self.register_new_thread(thread_id, register_info)
+        self.register_new_thread(thread_id, registers_info)
 
     def kill(self):
         """Instantly terminates the process."""
@@ -296,7 +300,7 @@ class GdbStubInterface(DebuggingInterface):
             else:
                 self.unset_breakpoint(bp, delete=False)
 
-        cmd = b"vCont;c"
+        cmd = b"vCont;c:p"+int2hexbstr(self.process_id)+b'.-1'
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
 
@@ -357,15 +361,14 @@ class GdbStubInterface(DebuggingInterface):
         """Migrates the current process from GDB."""
         pass
 
-    def register_new_thread(self, new_thread_id: int, register_info: list):
+    def register_new_thread(self, new_thread_id: int, registers_info: list[RegisterInfo]):
         """Registers a new thread."""
-        register_file = self._fetch_register_file(register_info)
+        register_file = self._fetch_register_file(registers_info)
         
         # TODO: Integrate with `register_holder_provider` method
-        register_holder = Amd64GdbRegisterHolder(register_file, register_info)
-
+        self.register_holder = Amd64GdbRegisterHolder(register_file, registers_info)
         with context_extend_from(self):
-            thread = ThreadContext.new(new_thread_id, register_holder)
+            thread = ThreadContext.new(new_thread_id, self.register_holder)
 
         link_context(thread, self)
 
