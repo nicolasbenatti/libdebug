@@ -51,10 +51,23 @@ def receive_stub_packet(cmd: str, sck: socket):
 
     return data
 
-def int2hexbstr(n: int, nbytes: int = 0) -> int:
+def int2hexbstr(n: int, nbytes: int = 0) -> bytes:
     """Coverts an integer into a Byte-converted hexstring
     
     Args:
         n (int): the number to convert.
         nbytes (int, optional): number of output digits. Defaults to 0 (= not specified)."""
     return bytes(f"{n:0{nbytes}x}", 'ascii')
+
+def hexbstr2int_le(hexstr: bytes) -> int:
+    """Converts a little-endian hex bytestring into an integer number.
+    
+    Args:
+        bytes (bytes): the hex bystestring in little-endian ordering."""
+    nbytes = len(hexstr)
+    if nbytes not in [8, 16]:
+        raise RuntimeError("Cannot convert hex literal to integer: make it 8 or 16 Bytes")
+
+    res = bytearray.fromhex(str(hexstr, 'ascii'))
+    res.reverse()
+    return int(''.join(f"{n:02x}" for n in res), 16)

@@ -40,7 +40,8 @@ from libdebug.gdb_stub.gdb_stub_utils import (
     send_ack,
     prepare_stub_packet,
     receive_stub_packet,
-    int2hexbstr
+    int2hexbstr,
+    hexbstr2int_le
 )
 from libdebug.utils.debugging_utils import normalize_and_validate_address
 from libdebug.utils.elf_utils import get_entry_point
@@ -377,7 +378,7 @@ class GdbStubInterface(DebuggingInterface):
             if bp.hardware:
                 thread_hw_bp_helper.install_breakpoint(bp)
 
-    def _fetch_register_file(self, register_info: list):
+    def _fetch_register_file(self, registers_info: list[RegisterInfo]):
         """Query the stub and fetch value of registers"""
         cmd = b'g'
         self.stub.send(prepare_stub_packet(cmd))
@@ -386,11 +387,11 @@ class GdbStubInterface(DebuggingInterface):
         # Slice the chunk with a 64bit stride to get
         # register values
         register_file = lambda: None
-        for reg in register_info:
+        for reg in registers_info:
             stride = int((reg.size / 8) * 2)
             offset = reg.offset * 2
             slice = reg_blob[offset : offset+stride]
-            value = int(slice, 16)
+            value = hexbstr2int_le(slice)
             setattr(register_file, reg.name, value)
 
         return register_file
