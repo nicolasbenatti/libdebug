@@ -78,7 +78,7 @@ class GdbStubInterface(DebuggingInterface):
     process_id: int | None
     """The process ID of the QEMU instance"""
 
-    stub: socket
+    stub: socket = None
     """The socket used to connect to the stub"""
 
     GDB_STUB_PORT: int
@@ -97,9 +97,6 @@ class GdbStubInterface(DebuggingInterface):
 
         self.GDB_STUB_PORT = 5000
 
-        if not self.context.aslr_enabled:
-            disable_self_aslr()
-
         self.process_id = 0
 
         self.hardware_bp_helpers = {}
@@ -108,8 +105,11 @@ class GdbStubInterface(DebuggingInterface):
 
     def reset(self):
         """Resets the state of the interface."""
-        # TODO
-        pass
+        self.hardware_bp_helpers.clear()
+        self.syscall_hooks_enabled = False
+        if self.stub != None:
+            self.stub.close()
+        self.process_id = 0
 
     def _set_options(self):
         """Sets the tracer options."""
