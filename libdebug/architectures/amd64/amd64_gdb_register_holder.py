@@ -6,6 +6,7 @@
 
 from xml.dom.minidom import parseString
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from libdebug.data.register_holder import GdbRegisterHolder
 from libdebug.gdb_stub.register_parser import (
@@ -24,6 +25,9 @@ from libdebug.utils.register_utils import (
     set_reg_32,
     set_reg_64,
 )
+
+if TYPE_CHECKING:
+    from libdebug.state.thread_context import ThreadContext
 
 
 AMD64_GP_REGS = ["a", "b", "c", "d"]
@@ -71,18 +75,20 @@ class Amd64RegisterInfoParser(RegisterInfoParser):
         document = parseString(data)
 
         reg_offset = 0
-        reg_order = list()
+        reg_info = dict()
         regs = document.getElementsByTagName("reg")
+        idx = 0
         for reg in regs:
             name = reg.getAttribute("name")
             size = int(reg.getAttribute("bitsize"))
             if name in AMD64_REGS:
-                item = RegisterInfo(reg_offset, name, size)
-                reg_order.append(item)
-
+                item = RegisterInfo(reg_offset, idx, name, int(size / 8))
+                reg_info[name] = item
+            
+            idx = idx+1
             reg_offset += int(size / 8)
-        
-        return reg_order
+
+        return reg_info
 
 @dataclass
 class Amd64GdbRegisterHolder(GdbRegisterHolder):

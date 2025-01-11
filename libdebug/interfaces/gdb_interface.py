@@ -22,7 +22,7 @@ from libdebug.architectures.gdb_hardware_breakpoint_provider import (
 from libdebug.architectures.register_helper import register_holder_provider
 from libdebug.data.breakpoint import Breakpoint
 from libdebug.data.memory_map import MemoryMap
-from libdebug.data.register_holder import RegisterHolder
+from libdebug.data.register_holder import GdbRegisterHolder
 from libdebug.architectures.amd64.amd64_gdb_register_holder import Amd64GdbRegisterHolder
 from libdebug.gdb_stub.register_parser_helper import register_parser_provider
 from libdebug.gdb_stub.register_parser import RegisterInfo
@@ -42,6 +42,7 @@ from libdebug.gdb_stub.gdb_stub_utils import (
     prepare_stub_packet,
     receive_stub_packet,
     int2hexbstr,
+    int2hexbstr_le,
     hexbstr2int_le
 )
 from libdebug.utils.debugging_utils import normalize_and_validate_address
@@ -77,7 +78,7 @@ class GdbStubInterface(DebuggingInterface):
     hardware_bp_helpers: dict[int, GdbHardwareBreakpointManager]
     """The hardware breakpoint managers (one for each thread)."""
 
-    register_holder: RegisterHolder = None
+    register_holder: GdbRegisterHolder = None
     """Tells the interface how to parse the register blob coming from the stub."""
 
     process_id: int | None
@@ -300,14 +301,41 @@ class GdbStubInterface(DebuggingInterface):
             else:
                 self.unset_breakpoint(bp, delete=False)
 
+        # Flush register updates in all threads
+        for thread in self.context.threads:
+            self._update_register_file(thread.registers)
+
         cmd = b"vCont;c:p"+int2hexbstr(self.process_id)+b'.-1'
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
 
+        # Update registers for all threads
+        for thread in self.context.threads:
+            regfile, thread.registers.register_blob = self._fetch_register_file(thread.registers.register_info)
+            for item, val in regfile.__dict__.items():
+                setattr(thread.registers.register_file, item, val)
+                #print(f"%s %#16x %#16x" % (item, val, thread.registers.get_most_recent_value(item)))
+            thread.registers.flush(thread)
+
     def step(self, thread: ThreadContext):
         """Executes a single instruction of the process."""
-        # TODO
-        pass
+        # Disable all breakpoints for the single step
+        for bp in self.context.breakpoints.values():
+            bp._disabled_for_step = True
+
+        # Flush register updates from the context.
+        self._update_register_file(thread.registers)
+
+        cmd = b'vCont;s:p'+int2hexbstr(self.process_id)+b'.'+int2hexbstr(thread.thread_id)
+        self.stub.send(prepare_stub_packet(cmd))
+        resp = receive_stub_packet(cmd, self.stub)
+
+        # Update registers in the thread context
+        regfile, thread.registers.register_blob = self._fetch_register_file(thread.registers.register_info)
+        for item, val in regfile.__dict__.items():
+            setattr(thread.registers.register_file, item, val)
+            #print(f"%s %#16x %#16x" % (item, val, thread.registers.get_most_recent_value(item)))
+        thread.registers.flush(thread)
 
     def step_until(self, thread: ThreadContext, address: int, max_steps: int):
         """Executes instructions of the specified thread until the specified address is reached.
@@ -343,7 +371,7 @@ class GdbStubInterface(DebuggingInterface):
         """
         pass
 
-    def get_register_holder(self, thread_id: int) -> RegisterHolder:
+    def get_register_holder(self, thread_id: int) -> GdbRegisterHolder:
         """Returns the current value of all the available registers.
         Note: the register holder should then be used to automatically setup getters and setters for each register.
         """
@@ -361,12 +389,12 @@ class GdbStubInterface(DebuggingInterface):
         """Migrates the current process from GDB."""
         pass
 
-    def register_new_thread(self, new_thread_id: int, registers_info: list[RegisterInfo]):
+    def register_new_thread(self, new_thread_id: int, registers_info: dict[str, RegisterInfo]):
         """Registers a new thread."""
-        register_file = self._fetch_register_file(registers_info)
+        register_file, register_blob = self._fetch_register_file(registers_info)
         
         # TODO: Integrate with `register_holder_provider` method
-        self.register_holder = Amd64GdbRegisterHolder(register_file, registers_info)
+        self.register_holder = Amd64GdbRegisterHolder(register_file, registers_info, register_blob)
         with context_extend_from(self):
             thread = ThreadContext.new(new_thread_id, self.register_holder)
 
@@ -381,23 +409,35 @@ class GdbStubInterface(DebuggingInterface):
             if bp.hardware:
                 thread_hw_bp_helper.install_breakpoint(bp)
 
-    def _fetch_register_file(self, registers_info: list[RegisterInfo]):
-        """Query the stub and fetch value of registers"""
+    def _fetch_register_file(self, registers_info: dict[str, RegisterInfo]):
+        """Queries the stub and fetches value of registers."""
         cmd = b'g'
         self.stub.send(prepare_stub_packet(cmd))
-        reg_blob = receive_stub_packet(cmd, self.stub)
-
-        # Slice the chunk with a 64bit stride to get
-        # register values
+        register_blob = receive_stub_packet(cmd, self.stub)
+        # Slice the blob to get register values
         register_file = lambda: None
-        for reg in registers_info:
-            stride = int((reg.size / 8) * 2)
+        for _, reg in registers_info.items():
+            stride = int(reg.size * 2)
             offset = reg.offset * 2
-            slice = reg_blob[offset : offset+stride]
-            value = hexbstr2int_le(slice)
+            slice = register_blob[offset : offset+stride]
+            if b'x' in slice:
+                value = 0x0
+            else:
+                value = hexbstr2int_le(slice)
             setattr(register_file, reg.name, value)
+    
+        return register_file, bytearray(register_blob)
 
-        return register_file
+    def _update_register_file(self, register_holder: GdbRegisterHolder):
+        """Sends updated register values to the stub."""
+        for _, reg in self.register_holder.register_info.items():
+            reg_val = getattr(register_holder.register_file, reg.name)
+            if reg_val != register_holder.get_most_recent_value(reg.name):
+                cmd = b'P'+int2hexbstr(reg.index)+b'='+int2hexbstr_le(reg_val, reg.size)
+                self.stub.send(prepare_stub_packet(cmd))
+                resp = receive_stub_packet(cmd, self.stub)
+                if resp != b"OK":
+                    raise RuntimeError("Cannot send updated registers to target process.")
 
     def unregister_thread(self, thread_id: int):
         """Unregisters a thread."""

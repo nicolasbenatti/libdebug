@@ -56,18 +56,38 @@ def int2hexbstr(n: int, nbytes: int = 0) -> bytes:
     
     Args:
         n (int): the number to convert.
-        nbytes (int, optional): number of output digits. Defaults to 0 (= not specified)."""
-    return bytes(f"{n:0{nbytes}x}", 'ascii')
+        nbytes (int, optional): number of Bytes of the output string. Defaults to 0 (= not specified)."""
+    return bytes(f"{n:0{2*nbytes}x}", 'ascii')
 
 def hexbstr2int_le(hexstr: bytes) -> int:
     """Converts a little-endian hex bytestring into an integer number.
     
     Args:
-        bytes (bytes): the hex bystestring in little-endian ordering."""
+        bytes (bytes): the hex bystestring in little-endian ordering.
+    """
     nbytes = len(hexstr)
     if nbytes not in [8, 16]:
-        raise RuntimeError("Cannot convert hex literal to integer: make it 8 or 16 Bytes")
+        raise RuntimeError(f"Cannot convert {int(nbytes/2)}-Byte hex literal to integer: make it 8 or 16 characters.")
 
     res = bytearray.fromhex(str(hexstr, 'ascii'))
     res.reverse()
+
     return int(''.join(f"{n:02x}" for n in res), 16)
+
+def int2hexbstr_le(n: int, nbytes: int) -> bytes:
+    """Converts an integer to a little-endian hex bytestring.
+
+    Args:
+        n (int): the number to convert.
+        nbytes (int): number of Bytes of the output string. Supported value are 4 and 8.
+    """
+    if nbytes not in [4, 8]:
+        raise RuntimeError(f"Cannot convert {nbytes}-Byte integer to little-endian hexstring: supported widths are 4 and 8 Bytes")
+
+    hexstr = int2hexbstr(n, nbytes)
+    res = bytearray.fromhex(str(hexstr, 'ascii'))
+    res.reverse()
+
+    return bytes(''.join(f"{n:02x}" for n in res), 'ascii')
+    
+

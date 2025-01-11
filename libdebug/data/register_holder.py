@@ -7,6 +7,11 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from libdebug.gdb_stub.register_parser import RegisterInfo
+from libdebug.gdb_stub.gdb_stub_utils import (
+    hexbstr2int_le
+)
+
 if TYPE_CHECKING:
     from libdebug.state.thread_context import ThreadContext
 
@@ -61,8 +66,25 @@ class GdbRegisterHolder(RegisterHolder):
 
     Attributes:
         register_file (object): The content of the register file of the process, as returned by the `GDB` stub.
-        register_info (list): A list containing information about registers, e.g. name, size, ...
+        register_info (dict[str, RegisterInfo]): A dictionary containing information about registers. Key is the register name.
+        register_blob (bytearray): The last received raw register data, to be able to update registers without issues.
     """
 
     register_file: object
-    register_info: list
+    register_info: dict[str, RegisterInfo]
+    register_blob: bytearray
+
+    def flush(self, source: "ThreadContext"):
+        for _, reg in self.register_info.items():
+            # Not every register is passed from the holder to the thread context
+            if reg.name in source.regs.__dict__:
+                setattr(self.register_file, reg.name, getattr(source.regs, reg.name))
+
+    def get_most_recent_value(self, reg_name: str) -> int:
+        """Returns the last value for a given register, read from the last-received blob.
+        
+        Args:
+            reg_name (str): The name of the register to fetch."""
+        info = self.register_info[reg_name]
+        idx = info.offset*2
+        return hexbstr2int_le(self.register_blob[idx : idx+2*info.size])
