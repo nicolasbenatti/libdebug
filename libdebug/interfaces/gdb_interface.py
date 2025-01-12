@@ -343,10 +343,27 @@ class GdbStubInterface(DebuggingInterface):
         Args:
             thread (ThreadContext): The thread to step.
             address (int): The address to reach.
-            max_steps (int): The maximum number of steps to execute.
+            max_steps (int): The maximum number of steps to execute. -1 means unlimited.
         """
-        # TODO
-        pass
+        # Disable all breakpoints for the single step
+        for bp in self.context.breakpoints.values():
+            bp._disabled_for_step = True
+
+        step_count = 0
+        while max_steps == -1 or step_count < max_steps:
+            prv_ip = thread.rip
+
+            self.step(thread)
+            if thread.rip == address:
+                break
+
+            # Step again because we hit a hw breakpoint
+            # NOTE: in QEMU user mode hw and sw breakpoints
+            # are treated the same way, so shouldn't be an issue
+            if thread.rip == prv_ip:
+                continue
+
+            step_count += 1
 
     def _setup_pipe(self):
         """
