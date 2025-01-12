@@ -18,7 +18,7 @@ def send_nack(sck: socket):
 
 def prepare_stub_packet(data: bytes):
     """Prepares a valid GDB stub packet starting from payload.
-    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Overview.html#Overview for info"""
+    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Overview.html#Overview for info."""
     payload = b'$' + data + b'#'
     payloadv = [bytes([b]) for b in data]
     checksum = 0
@@ -26,18 +26,17 @@ def prepare_stub_packet(data: bytes):
     for b in payloadv:
         checksum = checksum + ord(b)
     checksum = checksum % 256
-    hexum = hex(checksum)
 
-    # NOTE: checksum is 1 Byte, but must be expressed as a 2-digit hex number
-    return payload + bytes(hexum[2:4], "ascii")
+    # NOTE: Checksum is 1 Byte, but must be expressed as a 2-digit hex literal
+    return payload + bytes(f"{checksum:02x}", "ascii")
 
 def receive_stub_packet(cmd: str, sck: socket):
     """Handles the reception of a packet from GDB stub.
-    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Overview.html#Overview for info"""
-    # receive ACK/NACK
+    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Overview.html#Overview for info."""
+    # Receive ACK/NACK
     ack = sck.recv(1)
     if ack == b'-':
-        # if NAK received, return empty buffer
+        # If NAK received, return empty buffer
         # NOTE: this should never happen if we use
         #       TCP sockets
         return bytes()
@@ -45,7 +44,7 @@ def receive_stub_packet(cmd: str, sck: socket):
     resp = sck.recv(MAX_PACKET_LEN)
     send_ack(sck)
 
-    # extract data (or just strip control bytes if callback
+    # Extract data (or just strip control Bytes if callback
     # not available)
     callback = gdb_stub_callback_provider(cmd)
     data = callback(resp)
@@ -53,11 +52,12 @@ def receive_stub_packet(cmd: str, sck: socket):
     return data
 
 def int2hexbstr(n: int, nbytes: int = 0) -> bytes:
-    """Coverts an integer into a Byte-converted hexstring
-    
+    """Converts an integer into a Byte-converted hexstring.
+
     Args:
         n (int): the number to convert.
-        nbytes (int, optional): number of Bytes of the output string. Defaults to 0 (= not specified)."""
+        nbytes (int, optional): number of Bytes of the output string. Defaults to 0 (= not specified).
+    """
     return bytes(f"{n:0{2*nbytes}x}", 'ascii')
 
 def hexbstr2int_le(hexstr: bytes) -> int:
@@ -90,5 +90,3 @@ def int2hexbstr_le(n: int, nbytes: int) -> bytes:
     res.reverse()
 
     return bytes(''.join(f"{n:02x}" for n in res), 'ascii')
-    
-
