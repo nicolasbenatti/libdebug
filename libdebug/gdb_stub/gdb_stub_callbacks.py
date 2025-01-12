@@ -15,26 +15,35 @@ class GdbStubCallbacks:
 
     @staticmethod
     def default_callback(resp: bytes):
-        """Default callback: just strip control bytes & checksum."""
+        """Default callback: just strip control bytes & checksum.
+        
+        Args:
+            resp (bytes): The stub reply."""
         return resp[1 : -3]
 
     @staticmethod
     def qc_callback(resp: bytes):
         """Extracts information from the `qC` reply.
-        tid: process TID
-        pid: process PID"""
-        resp = GdbStubCallbacks.default_callback(resp)
+        
+        Args:
+            resp (bytes): The stub reply.
+
+        Returns:
+            tid (int): Thread ID.
+            pid (int): Process ID.
+        """
+        escaped = GdbStubCallbacks.default_callback(resp)
 
         # Add attributes on-the-fly with lambdas
         pid_tid = lambda: None
-        if b'p' in resp:
-            resp = resp[3:]
-            tmp = resp.split(b'.')
+        if b'p' in escaped:
+            escaped = escaped[3:]
+            tmp = escaped.split(b'.')
             pid_tid.pid = int(tmp[0], 16)
             pid_tid.tid = int(tmp[1], 16)
         else:
-            resp = resp[2:]
-            pid_tid.tid = int(resp, 16)
+            escaped = escaped[2:]
+            pid_tid.tid = int(escaped, 16)
             pid_tid.pid = None
 
         return pid_tid

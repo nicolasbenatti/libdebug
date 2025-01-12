@@ -5,13 +5,21 @@
 #
 
 from libdebug.gdb_stub.gdb_stub_callbacks import GdbStubCallbacks
-from libdebug.utils.libcontext import libcontext
+from libdebug.gdb_stub.gdb_stub_constants import Commands
 
 
-def gdb_stub_callback_provider(last_cmd: str):
+def gdb_stub_callback_provider(last_cmd: bytes):
     """Returns the right callback based on what's the last received packet."""
-    match last_cmd:
-        case b'qC':
+    # Extract command type
+    for supported_cmd in Commands:
+        if last_cmd.startswith(supported_cmd.value):
+            prefix = supported_cmd.value
+            break
+    else:
+        prefix = b""
+
+    match prefix:
+        case Commands.GET_PID_TID:
             return GdbStubCallbacks.qc_callback
         case _:
             return GdbStubCallbacks.default_callback

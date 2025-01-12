@@ -7,6 +7,7 @@
 import socket
 
 from libdebug.gdb_stub.gdb_stub_callbacks_helper import gdb_stub_callback_provider
+from libdebug.gdb_stub.gdb_stub_constants import MAX_PACKET_LEN
 
 
 def send_ack(sck: socket):
@@ -41,7 +42,7 @@ def receive_stub_packet(cmd: str, sck: socket):
         #       TCP sockets
         return bytes()
 
-    resp = sck.recv(3000)
+    resp = sck.recv(MAX_PACKET_LEN)
     send_ack(sck)
 
     # extract data (or just strip control bytes if callback
