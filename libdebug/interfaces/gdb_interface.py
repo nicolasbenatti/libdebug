@@ -12,6 +12,7 @@ from time import sleep
 import tty
 from pathlib import Path
 import socket
+from xml.parsers import expat
 
 from libdebug.architectures.gdb_hardware_breakpoint_manager import (
     GdbHardwareBreakpointManager,
@@ -24,6 +25,10 @@ from libdebug.data.breakpoint import Breakpoint
 from libdebug.data.memory_map import MemoryMap
 from libdebug.data.register_holder import GdbRegisterHolder
 from libdebug.architectures.amd64.amd64_gdb_register_holder import Amd64GdbRegisterHolder
+from libdebug.gdb_stub.gdb_stub_constants import (
+    StubCommands,
+    MAIN_TARGET_DESCRIPTION_FILENAME
+)
 from libdebug.gdb_stub.register_parser_helper import register_parser_provider
 from libdebug.gdb_stub.register_parser import RegisterInfo
 from libdebug.data.syscall_hook import SyscallHook
@@ -41,6 +46,7 @@ from libdebug.gdb_stub.gdb_stub_utils import (
     send_ack,
     prepare_stub_packet,
     receive_stub_packet,
+    get_supported_features,
     int2hexbstr,
     int2hexbstr_le,
     hexbstr2int_le
@@ -87,6 +93,9 @@ class GdbStubInterface(DebuggingInterface):
     stub: socket = None
     """The socket used to connect to the stub"""
 
+    parser: expat.XMLParserType = None
+    """Target description file parser."""
+
     GDB_STUB_PORT: int
     """Default port of the QEMU gdbstub"""
 
@@ -102,6 +111,9 @@ class GdbStubInterface(DebuggingInterface):
         self.context = provide_context(self)
 
         self.GDB_STUB_PORT = 5000
+
+        # Disable namespace processing to avoid issues
+        self.parser = expat.ParserCreate('ascii', None)
 
         self.process_id = 0
 
@@ -124,6 +136,42 @@ class GdbStubInterface(DebuggingInterface):
     def _trace_self(self):
         """Traces the current process."""
         pass
+    
+    def _fetch_target_description(self, filename: str):
+        """Reads a target description from the remote process.
+        See https://sourceware.org/gdb/current/onlinedocs/gdb.html/General-Query-Packets.html#qXfer-read for more info."""
+        offset = b'0'
+        data = b''
+        resp = b''
+        nbytes = 0
+        while resp != b'l':
+            cmd = b'qXfer:features:read:'+bytes(filename, 'ascii')+b':'+offset+b',ffb'
+            self.stub.send(prepare_stub_packet(cmd))
+            resp = receive_stub_packet(cmd, self.stub)
+            # Strip initial 'm'/'l'
+            data += resp[1:]
+            
+            nbytes += len(resp)-1
+            offset = int2hexbstr(nbytes)
+
+        return data.decode('ascii')
+
+    def _parse_main_target_description(self, data: str): 
+        """Parses the main target description file, getting the filename
+        of the architecture-dependent description file."""
+        arch_tdesc_filename = ""
+        
+        # Expat is an event-driven parser, so we need
+        # to define callbacks
+        def tag_start_handler(tag, attrs):
+            nonlocal arch_tdesc_filename
+            if tag == "xi:include":
+                arch_tdesc_filename = attrs["href"]
+
+        self.parser.StartElementHandler = tag_start_handler
+        self.parser.Parse(data)
+
+        return arch_tdesc_filename
 
     def run(self):
         """Runs the specified process."""
@@ -131,7 +179,7 @@ class GdbStubInterface(DebuggingInterface):
 
         argv = self.context.argv
         env = self.context.env
-        env["QEMU_GDB"] = "5000"
+        env["QEMU_GDB"] = str(self.GDB_STUB_PORT)
 
         liblog.debugger("Running %s", argv)
 
@@ -179,9 +227,9 @@ class GdbStubInterface(DebuggingInterface):
         send_ack(self.stub)
 
         # Enable supported features
-        cmd = b'qSupported:multiprocess+;swbreak+;hwbreak+;qRelocInsn+;fork-events+;vfork-events+;exec-events+;vContSupported+;QThreadEvents+;no-resumed+'
+        cmd = b'qSupported:'+get_supported_features()+b'swbreak+;hwbreak+'
         self.stub.send(prepare_stub_packet(cmd))
-        resp = receive_stub_packet(cmd, self.stub)
+        receive_stub_packet(cmd, self.stub)
 
         cmd = b'qC'
         self.stub.send(prepare_stub_packet(cmd))
@@ -190,28 +238,13 @@ class GdbStubInterface(DebuggingInterface):
         self.context.process_id = resp.pid
         thread_id = resp.tid
 
-        cmd = b'qXfer:features:read:target.xml:0,ffb'
-        self.stub.send(prepare_stub_packet(cmd))
-        resp = receive_stub_packet(cmd, self.stub)
-
-        offset = b'0'
-        data = b''
-        nbytes = 0
-        # TODO: We may not want a fixed no. of iterations
-        for i in range(4):
-            cmd = b'qXfer:features:read:i386-64bit.xml:'+offset+b',ffb'
-            self.stub.send(prepare_stub_packet(cmd))
-            resp = receive_stub_packet(cmd, self.stub)
-            # Strip initial 'm' (part of payload)
-            data += resp[1:]
-            
-            nbytes += len(resp)-1
-            offset = int2hexbstr(nbytes)
-
-        data = data.decode('ascii')
+        # Fetch target description of the remote process
+        main_tdesc = self._fetch_target_description(MAIN_TARGET_DESCRIPTION_FILENAME)
+        tdesc_filename = self._parse_main_target_description(main_tdesc)
+        tdesc = self._fetch_target_description(tdesc_filename)
 
         register_parser = register_parser_provider()
-        registers_info = register_parser.parse(data)
+        registers_info = register_parser.parse(tdesc)
         
         self.register_new_thread(thread_id, registers_info)
 
@@ -219,11 +252,11 @@ class GdbStubInterface(DebuggingInterface):
         """Attaches to the specified process.
 
         Args:
-            port (int): the port at which the stub is listening.
+            port (int): The port at which the stub is listening.
         """
         # TODO: When attaching to a process with GDB stub, we actually specify
         # the port at which the stub is listening to, not the PID.
-        
+
         self.is_attached_process = True
         self.stub = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -235,9 +268,9 @@ class GdbStubInterface(DebuggingInterface):
         print(f"Connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
 
         # Enable supported features
-        cmd = b'qSupported:multiprocess+;swbreak+;hwbreak+;fork-events+;vfork-events+;exec-events+;vContSupported+;QThreadEvents+;no-resumed+'
+        cmd = b'qSupported:'+get_supported_features()+b'swbreak+;hwbreak+'
         self.stub.send(prepare_stub_packet(cmd))
-        resp = receive_stub_packet(cmd, self.stub)
+        receive_stub_packet(cmd, self.stub)
 
         cmd = b'qC'
         self.stub.send(prepare_stub_packet(cmd))
@@ -246,28 +279,13 @@ class GdbStubInterface(DebuggingInterface):
         self.context.process_id = resp.pid
         thread_id = resp.tid
 
-        cmd = b'qXfer:features:read:target.xml:0,ffb'
-        self.stub.send(prepare_stub_packet(cmd))
-        resp = receive_stub_packet(cmd, self.stub)
-
-        offset = b'0'
-        data = b''
-        nbytes = 0
-        # TODO: We may not want a fixed no. of iterations
-        for i in range(4):
-            cmd = b'qXfer:features:read:i386-64bit.xml:'+offset+b',ffb'
-            self.stub.send(prepare_stub_packet(cmd))
-            resp = receive_stub_packet(cmd, self.stub)
-            # Strip initial 'm' (part of payload)
-            data += resp[1:]
-            
-            nbytes += len(resp)-1
-            offset = int2hexbstr(nbytes)
-
-        data = data.decode('ascii')
+        # Fetch target description of the remote process
+        main_tdesc = self._fetch_target_description(MAIN_TARGET_DESCRIPTION_FILENAME)
+        tdesc_filename = self._parse_main_target_description(main_tdesc)
+        tdesc = self._fetch_target_description(tdesc_filename)
 
         register_parser = register_parser_provider()
-        registers_info = register_parser.parse(data)
+        registers_info = register_parser.parse(tdesc)
 
         self.register_new_thread(thread_id, registers_info)
 

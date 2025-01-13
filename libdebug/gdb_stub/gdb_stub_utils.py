@@ -7,7 +7,10 @@
 import socket
 
 from libdebug.gdb_stub.gdb_stub_callbacks_helper import gdb_stub_callback_provider
-from libdebug.gdb_stub.gdb_stub_constants import MAX_PACKET_LEN
+from libdebug.gdb_stub.gdb_stub_constants import (
+    MAX_PACKET_LEN,
+    StubFeatures
+)
 
 
 def send_ack(sck: socket):
@@ -30,19 +33,19 @@ def prepare_stub_packet(data: bytes):
     # NOTE: Checksum is 1 Byte, but must be expressed as a 2-digit hex literal
     return payload + bytes(f"{checksum:02x}", "ascii")
 
-def receive_stub_packet(cmd: str, sck: socket):
+def receive_stub_packet(cmd: str, stub: socket):
     """Handles the reception of a packet from GDB stub.
     See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Overview.html#Overview for info."""
     # Receive ACK/NACK
-    ack = sck.recv(1)
+    ack = stub.recv(1)
     if ack == b'-':
         # If NAK received, return empty buffer
         # NOTE: this should never happen if we use
         #       TCP sockets
         return bytes()
 
-    resp = sck.recv(MAX_PACKET_LEN)
-    send_ack(sck)
+    resp = stub.recv(MAX_PACKET_LEN)
+    send_ack(stub)
 
     # Extract data (or just strip control Bytes if callback
     # not available)
@@ -50,6 +53,15 @@ def receive_stub_packet(cmd: str, sck: socket):
     data = callback(resp)
 
     return data
+
+def get_supported_features() -> bytes:
+    """Returns a string containing all the supported stub features
+    that can be probed (i.e. that you should expect in the stub reply)"""
+    res = b""
+    for feat in StubFeatures:
+        res += feat.value + b"+;"
+
+    return res
 
 def int2hexbstr(n: int, nbytes: int = 0) -> bytes:
     """Converts an integer into a Byte-converted hexstring.

@@ -4,6 +4,9 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
+from libdebug.gdb_stub.gdb_stub_constants import StubFeatures
+
+
 class GdbStubCallbacks:
     """A class that provides callbacks for the most common commands of GDB stub.
     The callbacks are meant to be called upon reception of a packet and allow to 
@@ -47,3 +50,18 @@ class GdbStubCallbacks:
             pid_tid.pid = None
 
         return pid_tid
+    
+    @staticmethod
+    def qsupported_callback(resp: bytes):
+        """Extracts information about stub's supported features.
+        
+        Args:
+            resp (bytes): The stub reply.
+        """
+        escaped = GdbStubCallbacks.default_callback(resp)
+        remote_feats = escaped.split(b';')[1:] # Discard `PacketSize`
+        
+        supported_feats = [feat.value for feat in StubFeatures]
+        for feat in supported_feats:
+            if feat+b'+' not in remote_feats:
+                raise RuntimeError(f"Stub doesn't support the following feature: {str(feat)}")
