@@ -160,12 +160,15 @@ class GdbStubInterface(DebuggingInterface):
         """Parses the main target description file, getting the filename
         of the architecture-dependent description file."""
         arch_tdesc_filename = ""
+        is_first_tag = False
         
         # Expat is an event-driven parser, so we need
         # to define callbacks
         def tag_start_handler(tag, attrs):
             nonlocal arch_tdesc_filename
-            if tag == "xi:include":
+            nonlocal is_first_tag
+            if is_first_tag == False and tag == "xi:include":
+                is_first_tag = True
                 arch_tdesc_filename = attrs["href"]
 
         self.parser.StartElementHandler = tag_start_handler
