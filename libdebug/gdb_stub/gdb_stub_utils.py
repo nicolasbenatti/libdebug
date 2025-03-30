@@ -8,7 +8,7 @@ import socket
 
 from libdebug.gdb_stub.gdb_stub_callbacks_helper import gdb_stub_callback_provider
 from libdebug.gdb_stub.gdb_stub_constants import (
-    MAX_PACKET_LEN,
+    MAX_PAYLOAD_LEN,
     StubFeatures
 )
 
@@ -44,7 +44,7 @@ def receive_stub_packet(cmd: str, stub: socket):
         #       TCP sockets
         return bytes()
 
-    resp = stub.recv(MAX_PACKET_LEN)
+    resp = stub.recv(MAX_PAYLOAD_LEN)
     send_ack(stub)
 
     # Extract data (or just strip control Bytes if callback
