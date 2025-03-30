@@ -15,10 +15,10 @@ import socket
 from xml.parsers import expat
 
 from libdebug.architectures.gdb_hardware_breakpoint_manager import (
-    GdbHardwareBreakpointManager,
+    GdbHardwareBreakpointManager
 )
 from libdebug.architectures.gdb_hardware_breakpoint_provider import (
-    gdb_hardware_breakpoint_manager_provider,
+    gdb_hardware_breakpoint_manager_provider
 )
 from libdebug.architectures.register_helper import register_holder_provider
 from libdebug.data.breakpoint import Breakpoint
@@ -37,7 +37,7 @@ from libdebug.liblog import liblog
 from libdebug.state.debugging_context import (
     context_extend_from,
     link_context,
-    provide_context,
+    provide_context
 )
 from libdebug.state.debugging_context import DebuggingContext
 from libdebug.state.thread_context import ThreadContext
