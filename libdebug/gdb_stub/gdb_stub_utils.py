@@ -102,3 +102,22 @@ def int2hexbstr_le(n: int, nbytes: int) -> bytes:
     res.reverse()
 
     return bytes(''.join(f"{n:02x}" for n in res), 'ascii')
+
+def str2hex(s: str):
+    """Converts a string into another string containing its
+    ASCII hexadecimal representation.
+    
+    Args:
+        s: the string to convert.
+    """
+
+    return s.encode('ascii').hex()
+
+def bstr2hex(buf: bytes):
+    """Converts a binary string into another one containing its hex-encoded bytes.
+    
+    Args:
+        buf: the binary string to convert.
+    """
+
+    return bytes(''.join([f"{b:x}" for b in buf]), 'ascii')
