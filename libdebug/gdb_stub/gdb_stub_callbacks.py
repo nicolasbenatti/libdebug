@@ -21,7 +21,7 @@ class GdbStubCallbacks:
         """Default callback: just strip control bytes & checksum.
         
         Args:
-            resp (bytes): The stub reply."""
+            resp (bytes): The raw stub reply."""
         return resp[1 : -3]
 
     @staticmethod
@@ -29,7 +29,7 @@ class GdbStubCallbacks:
         """Extracts information from the `qC` reply.
         
         Args:
-            resp (bytes): The stub reply.
+            resp (bytes): The raw stub reply.
 
         Returns:
             tid (int): Thread ID.
@@ -56,7 +56,7 @@ class GdbStubCallbacks:
         """Extracts information about stub's supported features.
         
         Args:
-            resp (bytes): The stub reply.
+            resp (bytes): The raw stub reply.
         """
         escaped = GdbStubCallbacks.default_callback(resp)
         remote_feats = escaped.split(b';')[1:] # Discard `PacketSize`
