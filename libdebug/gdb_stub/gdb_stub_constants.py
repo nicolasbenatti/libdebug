@@ -27,11 +27,11 @@ class StubCommands(bytes, Enum):
     UNSET_SW_BP = b"z0,"
     UNSET_HW_BP = b"z1,"
     CONTINUE = b"vCont;c:"
-    STEP = b"vConst;s:"
+    STEP = b"vCont;s:"
     KILL = b"vKill;"
 
 class StubFeatures(bytes, Enum):
-    """Supported features; Features can be either query commands or indications on stub's capabilities (e.g. threading support).
+    """Supported features. Features can be either query commands or indications on stub's capabilities (e.g. threading support).
     See https://sourceware.org/gdb/current/onlinedocs/gdb.html/General-Query-Packets.html#qSupported for a comprehensive list."""
 
     TDESCR_READ_FEATURE = b"qXfer:features:read"
