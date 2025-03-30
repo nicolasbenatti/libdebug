@@ -65,3 +65,14 @@ class GdbStubCallbacks:
         for feat in supported_feats:
             if feat+b'+' not in remote_feats:
                 raise RuntimeError(f"Stub doesn't support the following feature: {str(feat)}")
+    
+    def qexec_file_read_callback(resp: bytes):
+        """Extracts the full path of the remote running program.
+        
+        Args:
+            resp (bytes): The raw stub reply.
+        """
+
+        escaped = GdbStubCallbacks.default_callback(resp)
+        # strip initial 'l' indicating "no more data to read"
+        return escaped[1:]

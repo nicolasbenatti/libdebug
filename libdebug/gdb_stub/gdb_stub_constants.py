@@ -18,6 +18,7 @@ class StubCommands(bytes, Enum):
     GET_PID_TID = b"qC"
     HALT_REASON = b"?"
     TDESCR_READ = b"qXfer:features:read:"
+    EXECFILE_READ = b"qXfer:exec-file:read:"
     REG_READ_ALL = b"g"
     REG_WRITE = b"P"
     MEM_READ = b"m"

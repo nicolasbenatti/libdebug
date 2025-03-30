@@ -21,6 +21,8 @@ def gdb_stub_callback_provider(last_cmd: bytes):
     match prefix:
         case StubCommands.GET_SUPPORTED_FEATS:
             return GdbStubCallbacks.qsupported_callback
+        case StubCommands.EXECFILE_READ:
+            return GdbStubCallbacks.qexec_file_read_callback
         case StubCommands.GET_PID_TID:
             return GdbStubCallbacks.qc_callback
         case _:

@@ -105,6 +105,9 @@ class GdbStubInterface(DebuggingInterface):
     is_attached_process: bool
     """Whether libdebug was attached to a running stub or directly spawned the QEMU instance"""
 
+    executable_path: str
+    """Absolute path of the program running on the stub"""
+
     def __init__(self):
         super().__init__()
 
@@ -291,6 +294,11 @@ class GdbStubInterface(DebuggingInterface):
         registers_info = register_parser.parse(tdesc)
 
         self.register_new_thread(thread_id, registers_info)
+
+        cmd = b"qXfer:exec-file:read:"+ int2hexbstr(self.process_id) +b":0,ffb"
+        self.stub.send(prepare_stub_packet(cmd))
+        elf_fname = receive_stub_packet(cmd, self.stub)
+        self.executable_path = elf_fname.decode('ascii')
 
     def kill(self):
         """Instantly terminates the process."""
@@ -594,5 +602,5 @@ class GdbStubInterface(DebuggingInterface):
         permissions = "rwxp"
         size = end
         int_offset = 0x00000000
-        backing_file = ""
+        backing_file = self.executable_path
         return [MemoryMap(start, end, permissions, size, int_offset, backing_file)]
