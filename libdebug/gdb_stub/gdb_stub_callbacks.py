@@ -76,3 +76,28 @@ class GdbStubCallbacks:
         escaped = GdbStubCallbacks.default_callback(resp)
         # strip initial 'l' indicating "no more data to read"
         return escaped[1:]
+    
+    def vfile_open_callback(resp: bytes):
+        """Extracts the file descriptor of the requested file.
+        
+        Args:
+            resp (bytes): The raw stub reply.
+        """
+
+        escaped = GdbStubCallbacks.default_callback(resp)
+        
+        return escaped[1:]
+    
+    def vfile_pread_callback(resp: bytes):
+        """Extracts content of the requested file.
+        
+        Args:
+            resp (bytes): The raw stub reply.
+        """
+
+        escaped = GdbStubCallbacks.default_callback(resp)
+
+        bundle = lambda: None
+        bundle.nbytes = int(escaped[1:escaped.index(b';')], 16)
+        bundle.data = escaped[escaped.index(b';')+1:]
+        return bundle

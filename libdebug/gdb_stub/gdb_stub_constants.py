@@ -30,6 +30,9 @@ class StubCommands(bytes, Enum):
     CONTINUE = b"vCont;c:"
     STEP = b"vCont;s:"
     KILL = b"vKill;"
+    VFILE_SETFS = b"vFile:setfs:"
+    VFILE_OPEN = b"vFile:open:"
+    VFILE_PREAD = b"vFile:pread:"
 
 class StubFeatures(bytes, Enum):
     """Supported features. Features can be either query commands or indications on stub's capabilities (e.g. threading support).

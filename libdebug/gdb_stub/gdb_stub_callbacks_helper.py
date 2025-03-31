@@ -23,6 +23,10 @@ def gdb_stub_callback_provider(last_cmd: bytes):
             return GdbStubCallbacks.qsupported_callback
         case StubCommands.EXECFILE_READ:
             return GdbStubCallbacks.qexec_file_read_callback
+        case StubCommands.VFILE_OPEN:
+            return GdbStubCallbacks.vfile_open_callback
+        case StubCommands.VFILE_PREAD:
+            return GdbStubCallbacks.vfile_pread_callback
         case StubCommands.GET_PID_TID:
             return GdbStubCallbacks.qc_callback
         case _:

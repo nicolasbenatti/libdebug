@@ -179,6 +179,28 @@ class GdbStubInterface(DebuggingInterface):
 
         return arch_tdesc_filename
 
+    def _fetch_elf_file(self, fd: str): 
+        """Reads the content of the remote process' exexutable file. """
+        offset = b'0'
+        data = b''
+        resp = b''
+        nbytes = -1
+        
+        cmd = b'vFile:pread:'+int2hexbstr(int(fd))+b",800,"+offset   
+        self.stub.send(prepare_stub_packet(cmd))
+        resp = receive_stub_packet(cmd, self.stub)
+        
+        while resp.nbytes != 0:
+            data += resp.data
+            nbytes += resp.nbytes
+            offset = int2hexbstr(nbytes)
+            
+            cmd = b'vFile:pread:'+int2hexbstr(int(fd))+b",800,"+offset   
+            self.stub.send(prepare_stub_packet(cmd))
+            resp = receive_stub_packet(cmd, self.stub)
+        
+        return data
+
     def run(self):
         """Runs the specified process."""
         self.is_attached_process = False
@@ -253,6 +275,11 @@ class GdbStubInterface(DebuggingInterface):
         registers_info = register_parser.parse(tdesc)
         
         self.register_new_thread(thread_id, registers_info)
+        
+        cmd = b"qXfer:exec-file:read:"+ int2hexbstr(self.process_id) +b":0,ffb"
+        self.stub.send(prepare_stub_packet(cmd))
+        elf_fname = receive_stub_packet(cmd, self.stub)
+        self.executable_path = elf_fname.decode('ascii')
 
     def attach(self, port: int):
         """Attaches to the specified process.
@@ -298,6 +325,24 @@ class GdbStubInterface(DebuggingInterface):
         cmd = b"qXfer:exec-file:read:"+ int2hexbstr(self.process_id) +b":0,ffb"
         self.stub.send(prepare_stub_packet(cmd))
         elf_fname = receive_stub_packet(cmd, self.stub)
+
+        # if the remote is on another machine, try to download the executable
+        if not os.path.exists(elf_fname):
+            print("CIAONE")
+            cmd = b"vFile:setfs:0"
+            self.stub.send(prepare_stub_packet(cmd))
+            resp = receive_stub_packet(cmd, self.stub)
+
+            cmd = b"vFile:open:"+bstr2hex(elf_fname)+b",0,0"
+            self.stub.send(prepare_stub_packet(cmd))
+            fd = receive_stub_packet(cmd, self.stub)
+
+            elf = self._fetch_elf_file(int(fd))
+            elf_fname = os.getcwd()+"/../../remote_binaries/"+elf_fname.split("/")[-1]
+            with open(elf_fname, "wb") as f:
+                f.write(elf)
+                f.close()
+    
         self.executable_path = elf_fname.decode('ascii')
 
     def kill(self):
