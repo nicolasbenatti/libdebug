@@ -5,6 +5,7 @@
 #
 
 import socket
+import math
 
 from libdebug.gdb_stub.gdb_stub_callbacks_helper import gdb_stub_callback_provider
 from libdebug.gdb_stub.gdb_stub_constants import (
@@ -80,7 +81,7 @@ def hexbstr2int_le(hexstr: bytes) -> int:
     """
     nbytes = len(hexstr)
     if nbytes not in [8, 16]:
-        raise RuntimeError(f"Cannot convert {int(nbytes/2)}-Byte hex literal to integer: make it 8 or 16 characters.")
+        raise ValueError(f"Cannot convert {int(nbytes/2)}-Byte hex literal to integer: supported widths are 4 and 8 Bytes")
 
     res = bytearray.fromhex(str(hexstr, 'ascii'))
     res.reverse()
@@ -95,7 +96,7 @@ def int2hexbstr_le(n: int, nbytes: int) -> bytes:
         nbytes (int): number of Bytes of the output string. Supported value are 4 and 8.
     """
     if nbytes not in [4, 8]:
-        raise RuntimeError(f"Cannot convert {nbytes}-Byte integer to little-endian hexstring: supported widths are 4 and 8 Bytes")
+        raise ValueError(f"Cannot convert {math.ceil(math.log(n)):d}-Byte integer to little-endian hexstring: supported widths are 4 and 8 Bytes")
 
     hexstr = int2hexbstr(n, nbytes)
     res = bytearray.fromhex(str(hexstr, 'ascii'))
@@ -110,6 +111,8 @@ def str2hex(s: str):
     Args:
         s: the string to convert.
     """
+    if len(s) == 0:
+        raise ValueError("Cannot convert empty string to hex representation")
 
     return s.encode('ascii').hex()
 
@@ -119,5 +122,7 @@ def bstr2hex(buf: bytes):
     Args:
         buf: the binary string to convert.
     """
+    if len(buf) == 0:
+        raise ValueError("Cannot convert bytestring to hex representation")
 
     return bytes(''.join([f"{b:x}" for b in buf]), 'ascii')

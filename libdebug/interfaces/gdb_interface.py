@@ -49,7 +49,8 @@ from libdebug.gdb_stub.gdb_stub_utils import (
     get_supported_features,
     int2hexbstr,
     int2hexbstr_le,
-    hexbstr2int_le
+    hexbstr2int_le,
+    bstr2hex
 )
 from libdebug.utils.debugging_utils import normalize_and_validate_address
 from libdebug.utils.elf_utils import get_entry_point
@@ -132,14 +133,6 @@ class GdbStubInterface(DebuggingInterface):
             self.stub.close()
         self.process_id = 0
 
-    def _set_options(self):
-        """Sets the tracer options."""
-        pass
-
-    def _trace_self(self):
-        """Traces the current process."""
-        pass
-    
     def _fetch_target_description(self, filename: str):
         """Reads a target description from the remote process.
         See https://sourceware.org/gdb/current/onlinedocs/gdb.html/General-Query-Packets.html#qXfer-read for more info."""
@@ -160,8 +153,10 @@ class GdbStubInterface(DebuggingInterface):
         return data.decode('ascii')
 
     def _parse_main_target_description(self, data: str): 
-        """Parses the main target description file, getting the filename
-        of the architecture-dependent description file."""
+        """Parses the main target description file.
+        
+        Returns: the filename of the architecture-dependent description file.
+        """
         arch_tdesc_filename = ""
         is_first_tag = False
         
@@ -180,12 +175,13 @@ class GdbStubInterface(DebuggingInterface):
         return arch_tdesc_filename
 
     def _fetch_elf_file(self, fd: str): 
-        """Reads the content of the remote process' exexutable file. """
+        """Reads the content of the remote process' executable file."""
         offset = b'0'
         data = b''
         resp = b''
         nbytes = -1
         
+        # Read 2KiB chunks
         cmd = b'vFile:pread:'+int2hexbstr(int(fd))+b",800,"+offset   
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
@@ -295,7 +291,7 @@ class GdbStubInterface(DebuggingInterface):
         try:
             self.stub.connect(("localhost", self.GDB_STUB_PORT))
         except Exception as e:
-            raise Exception("Error when connecting to GDB stub, maybe QEMU is down?")
+            raise Exception("Error when connecting to GDB stub, is QEMU running?")
         stub_info = self.stub.getpeername()
         self.context.process_id = port
         print(f"Connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
@@ -328,7 +324,7 @@ class GdbStubInterface(DebuggingInterface):
 
         # if the remote is on another machine, try to download the executable
         if not os.path.exists(elf_fname):
-            print("CIAONE")
+            print("Executable file is not on local machine, downloading...", end="")
             cmd = b"vFile:setfs:0"
             self.stub.send(prepare_stub_packet(cmd))
             resp = receive_stub_packet(cmd, self.stub)
@@ -342,6 +338,7 @@ class GdbStubInterface(DebuggingInterface):
             with open(elf_fname, "wb") as f:
                 f.write(elf)
                 f.close()
+            print("DONE")
     
         self.executable_path = elf_fname.decode('ascii')
 
@@ -474,11 +471,11 @@ class GdbStubInterface(DebuggingInterface):
 
     def migrate_to_gdb(self):
         """Migrates the current process to GDB."""
-        pass
+        raise RuntimeError("This method should never be called.")
 
     def migrate_from_gdb(self):
         """Migrates the current process from GDB."""
-        pass
+        raise RuntimeError("This method should never be called.")
 
     def register_new_thread(self, new_thread_id: int, registers_info: dict[str, RegisterInfo]):
         """Registers a new thread."""
@@ -516,7 +513,7 @@ class GdbStubInterface(DebuggingInterface):
             else:
                 value = hexbstr2int_le(slice)
             setattr(register_file, reg.name, value)
-    
+
         return register_file, bytearray(register_blob)
 
     def _update_register_file(self, register_holder: GdbRegisterHolder):
@@ -528,7 +525,7 @@ class GdbStubInterface(DebuggingInterface):
                 self.stub.send(prepare_stub_packet(cmd))
                 resp = receive_stub_packet(cmd, self.stub)
                 if resp != b"OK":
-                    raise RuntimeError("Cannot send updated registers to target process.")
+                    raise RuntimeError("Cannot send updated registers to the target process.")
 
     def unregister_thread(self, thread_id: int):
         """Unregisters a thread."""

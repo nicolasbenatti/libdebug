@@ -16,7 +16,8 @@ class RegisterInfo:
 
     offset: int
     """Byte-offset of the register in the register blob (i.e., reply to 'g' packet).
-    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Packets.html#read-registers-packet for info."""
+    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Packets.html#read-registers-packet for info.
+    """
 
     index: int
     """Logical order of the register as stated in the Target Description file."""
@@ -35,7 +36,8 @@ class RegisterInfo:
 
 class RegisterInfoParser(ABC):
     """An abstract class which extracts register information from a Target Description file.
-    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Target-Descriptions.html#Target-Descriptions for info"""
+    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Target-Descriptions.html#Target-Descriptions for info.
+    """
 
     @staticmethod
     @abstractmethod

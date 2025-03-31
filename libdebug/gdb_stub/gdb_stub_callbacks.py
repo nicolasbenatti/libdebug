@@ -21,7 +21,8 @@ class GdbStubCallbacks:
         """Default callback: just strip control bytes & checksum.
         
         Args:
-            resp (bytes): The raw stub reply."""
+            resp (bytes): The raw stub reply.
+        """
         return resp[1 : -3]
 
     @staticmethod
@@ -72,8 +73,8 @@ class GdbStubCallbacks:
         Args:
             resp (bytes): The raw stub reply.
         """
-
         escaped = GdbStubCallbacks.default_callback(resp)
+        
         # strip initial 'l' indicating "no more data to read"
         return escaped[1:]
     
@@ -83,7 +84,6 @@ class GdbStubCallbacks:
         Args:
             resp (bytes): The raw stub reply.
         """
-
         escaped = GdbStubCallbacks.default_callback(resp)
         
         return escaped[1:]
@@ -94,7 +94,6 @@ class GdbStubCallbacks:
         Args:
             resp (bytes): The raw stub reply.
         """
-
         escaped = GdbStubCallbacks.default_callback(resp)
 
         bundle = lambda: None
