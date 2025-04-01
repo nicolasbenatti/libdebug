@@ -8,6 +8,8 @@ from enum import Enum
 
 MAX_PACKET_LEN = 4096 # Bytes
 MAX_PAYLOAD_LEN = MAX_PACKET_LEN - 5 # Not counting delimiters and checksum
+ORDINARY_PACKET_INITIAL_BYTE = b'$'
+NOTIFICATION_PACKET_INITIAL_BYTE = b'%'
 
 MAIN_TARGET_DESCRIPTION_FILENAME = "target.xml"
 
