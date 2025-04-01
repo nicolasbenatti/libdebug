@@ -6,12 +6,14 @@
 
 import socket
 import math
+import errno
 
 from libdebug.gdb_stub.gdb_stub_callbacks_helper import gdb_stub_callback_provider
+from libdebug.liblog import liblog
 from libdebug.gdb_stub.gdb_stub_constants import (
     GDBSTUB_MAX_PAYLOAD_LEN,
     GDBSTUB_ORDINARY_PACKET_INITIAL_BYTE,
-    GDBSTUB_NOTIFICATION_PACKET_INITIAL_BYTE,
+    GDBSTUB_REPLY_UNSUPPORTED,
     GDBStubFeatures
 )
 
@@ -50,6 +52,14 @@ def receive_stub_packet(cmd: str, stub: socket):
     resp = stub.recv(GDBSTUB_MAX_PAYLOAD_LEN)
     if resp[0] == ord(GDBSTUB_ORDINARY_PACKET_INITIAL_BYTE):
         send_ack(stub)
+    
+    # Handle error/unsupported replies
+    if resp == GDBSTUB_REPLY_UNSUPPORTED:
+        # TODO: silently discard or raise exception?
+        liblog.debugger("GDBSTUB: unsupported reply, ignoring...")
+    elif resp[1] == ord(b'E'):
+        errcode = int(resp[1:3], 10)
+        liblog.error(f"GDBSTUB: received error code \'{errcode}\' [{errno.errorcode[errcode]}]")    
 
     # Extract data (or just strip control Bytes if callback
     # not available)
