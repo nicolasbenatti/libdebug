@@ -132,6 +132,7 @@ class GdbStubInterface(DebuggingInterface):
         self.syscall_hooks_enabled = False
         if self.stub != None:
             self.stub.close()
+            self.stub = None
         self.process_id = 0
 
     def _fetch_target_description(self, filename: str):
@@ -198,7 +199,7 @@ class GdbStubInterface(DebuggingInterface):
         
         return data
     
-    def check_termination(self, resp: bytes):
+    def should_disconnect(self, resp: bytes):
         """Check whether the remote process is not running anymore after a client command (continue/step/step_until)
         See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Stop-Reply-Packets.html#Stop-Reply-Packets for more info.
         
@@ -207,13 +208,18 @@ class GdbStubInterface(DebuggingInterface):
         if resp[0] == ord(b'W'):
             liblog.debugger(f"GDBSTUB: remote process exited with status {int(resp[1:3])}")
             self.reset()
+            return True
         elif resp[0] == ord(b'X'):
             liblog.debugger(f"GDBSTUB: remote process terminated with signal {int(resp[1:3])}")
             self.reset()
+            return True
         elif resp == b'N':
-            self.reset()
             liblog.debugger("GDBSTUB: process is alive, but no running threads")
+            self.reset()
+            return True
         
+        return False
+
     def run(self):
         """Runs the specified process."""
         self.is_attached_process = False
@@ -374,6 +380,9 @@ class GdbStubInterface(DebuggingInterface):
 
     def cont(self):
         """Continues the execution of the process."""
+        if self.stub is None:
+            raise RuntimeError("Not connected to any stub, quitting...")
+        
         # Enable all breakpoints if they were disabled for a single step
         changed = []
 
@@ -397,7 +406,8 @@ class GdbStubInterface(DebuggingInterface):
         cmd = b"vCont;c:p"+int2hexbstr(self.process_id)+b'.-1'
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
-        self.check_termination(resp)
+        if self.should_disconnect(resp):
+            return
 
         # Update registers for all threads
         for thread in self.context.threads:
@@ -409,6 +419,9 @@ class GdbStubInterface(DebuggingInterface):
 
     def step(self, thread: ThreadContext):
         """Executes a single instruction of the process."""
+        if self.stub is None:
+            raise RuntimeError("Not connected to any stub, quitting...")
+        
         # Disable all breakpoints for the single step
         for bp in self.context.breakpoints.values():
             bp._disabled_for_step = True
@@ -419,7 +432,8 @@ class GdbStubInterface(DebuggingInterface):
         cmd = b'vCont;s:p'+int2hexbstr(self.process_id)+b'.'+int2hexbstr(thread.thread_id)
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
-        self.check_termination(resp)
+        if self.should_disconnect(resp):
+            return
 
         # Update registers in the thread context
         regfile, thread.registers.register_blob = self._fetch_register_file(thread.registers.register_info)
@@ -436,6 +450,9 @@ class GdbStubInterface(DebuggingInterface):
             address (int): The address to reach.
             max_steps (int): The maximum number of steps to execute. -1 means unlimited.
         """
+        if self.stub is None:
+            raise RuntimeError("Not connected to any stub, quitting...")
+
         # Disable all breakpoints for the single step
         for bp in self.context.breakpoints.values():
             bp._disabled_for_step = True
