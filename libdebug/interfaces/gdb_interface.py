@@ -26,8 +26,9 @@ from libdebug.data.memory_map import MemoryMap
 from libdebug.data.register_holder import GdbRegisterHolder
 from libdebug.architectures.amd64.amd64_gdb_register_holder import Amd64GdbRegisterHolder
 from libdebug.gdb_stub.gdb_stub_constants import (
-    StubCommands,
-    MAIN_TARGET_DESCRIPTION_FILENAME
+    GDBStubCommands,
+    GDBStubReplies,
+    GDBSTUB_MAIN_TARGET_DESCRIPTION_FILENAME
 )
 from libdebug.gdb_stub.register_parser_helper import register_parser_provider
 from libdebug.gdb_stub.register_parser import RegisterInfo
@@ -263,7 +264,7 @@ class GdbStubInterface(DebuggingInterface):
         thread_id = resp.tid
 
         # Fetch target description of the remote process
-        main_tdesc = self._fetch_target_description(MAIN_TARGET_DESCRIPTION_FILENAME)
+        main_tdesc = self._fetch_target_description(GDBSTUB_MAIN_TARGET_DESCRIPTION_FILENAME)
         tdesc_filename = self._parse_main_target_description(main_tdesc)
         tdesc = self._fetch_target_description(tdesc_filename)
 
@@ -309,7 +310,7 @@ class GdbStubInterface(DebuggingInterface):
         thread_id = resp.tid
 
         # Fetch target description of the remote process
-        main_tdesc = self._fetch_target_description(MAIN_TARGET_DESCRIPTION_FILENAME)
+        main_tdesc = self._fetch_target_description(GDBSTUB_MAIN_TARGET_DESCRIPTION_FILENAME)
         tdesc_filename = self._parse_main_target_description(main_tdesc)
         tdesc = self._fetch_target_description(tdesc_filename)
 

@@ -9,10 +9,10 @@ import math
 
 from libdebug.gdb_stub.gdb_stub_callbacks_helper import gdb_stub_callback_provider
 from libdebug.gdb_stub.gdb_stub_constants import (
-    MAX_PAYLOAD_LEN,
-    ORDINARY_PACKET_INITIAL_BYTE,
-    NOTIFICATION_PACKET_INITIAL_BYTE,
-    StubFeatures
+    GDBSTUB_MAX_PAYLOAD_LEN,
+    GDBSTUB_ORDINARY_PACKET_INITIAL_BYTE,
+    GDBSTUB_NOTIFICATION_PACKET_INITIAL_BYTE,
+    GDBStubFeatures
 )
 
 
@@ -47,8 +47,8 @@ def receive_stub_packet(cmd: str, stub: socket):
         #       TCP sockets
         return bytes()
 
-    resp = stub.recv(MAX_PAYLOAD_LEN)
-    if resp[0] == ord(ORDINARY_PACKET_INITIAL_BYTE):
+    resp = stub.recv(GDBSTUB_MAX_PAYLOAD_LEN)
+    if resp[0] == ord(GDBSTUB_ORDINARY_PACKET_INITIAL_BYTE):
         send_ack(stub)
 
     # Extract data (or just strip control Bytes if callback
@@ -62,7 +62,7 @@ def get_supported_features() -> bytes:
     """Returns a string containing all the supported stub features
     that can be probed (i.e. that you should expect in the stub reply)"""
     res = b""
-    for feat in StubFeatures:
+    for feat in GDBStubFeatures:
         res += feat.value + b"+;"
 
     return res

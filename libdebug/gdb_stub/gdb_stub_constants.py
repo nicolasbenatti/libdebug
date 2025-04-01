@@ -6,41 +6,41 @@
 
 from enum import Enum
 
-MAX_PACKET_LEN = 4096 # Bytes
-MAX_PAYLOAD_LEN = MAX_PACKET_LEN - 5 # Not counting delimiters and checksum
-ORDINARY_PACKET_INITIAL_BYTE = b'$'
-NOTIFICATION_PACKET_INITIAL_BYTE = b'%'
+GDBSTUB_MAX_PACKET_LEN = 4096 # Bytes
+GDBSTUB_MAX_PAYLOAD_LEN = GDBSTUB_MAX_PACKET_LEN - 5 # Not counting delimiters and checksum
+GDBSTUB_ORDINARY_PACKET_INITIAL_BYTE = b'$'
+GDBSTUB_NOTIFICATION_PACKET_INITIAL_BYTE = b'%'
 
-MAIN_TARGET_DESCRIPTION_FILENAME = "target.xml"
 
-class StubCommands(bytes, Enum):
+GDBSTUB_MAIN_TARGET_DESCRIPTION_FILENAME = "target.xml"
+
+class GDBStubCommands(bytes, Enum):
     """Supported commands."""
+    GDBSTUB_GET_SUPPORTED_FEATS = b"qSupported:"
+    GDBSTUB_GET_PID_TID = b"qC"
+    GDBSTUB_HALT_REASON = b"?"
+    GDBSTUB_TDESCR_READ = b"qXfer:features:read:"
+    GDBSTUB_EXECFILE_READ = b"qXfer:exec-file:read:"
+    GDBSTUB_REG_READ_ALL = b"g"
+    GDBSTUB_REG_WRITE = b"P"
+    GDBSTUB_MEM_READ = b"m"
+    GDBSTUB_MEM_WRITE = b"M"
+    GDBSTUB_SET_SW_BP = b"Z0,"
+    GDBSTUB_SET_HW_BP = b"Z1,"
+    GDBSTUB_UNSET_SW_BP = b"z0,"
+    GDBSTUB_UNSET_HW_BP = b"z1,"
+    GDBSTUB_CONTINUE = b"vCont;c:"
+    GDBSTUB_STEP = b"vCont;s:"
+    GDBSTUB_KILL = b"vKill;"
+    GDBSTUB_VFILE_SETFS = b"vFile:setfs:"
+    GBSTUB_VFILE_OPEN = b"vFile:open:"
+    GDBSTUB_VFILE_PREAD = b"vFile:pread:"
 
-    GET_SUPPORTED_FEATS = b"qSupported:"
-    GET_PID_TID = b"qC"
-    HALT_REASON = b"?"
-    TDESCR_READ = b"qXfer:features:read:"
-    EXECFILE_READ = b"qXfer:exec-file:read:"
-    REG_READ_ALL = b"g"
-    REG_WRITE = b"P"
-    MEM_READ = b"m"
-    MEM_WRITE = b"M"
-    SET_SW_BP = b"Z0,"
-    SET_HW_BP = b"Z1,"
-    UNSET_SW_BP = b"z0,"
-    UNSET_HW_BP = b"z1,"
-    CONTINUE = b"vCont;c:"
-    STEP = b"vCont;s:"
-    KILL = b"vKill;"
-    VFILE_SETFS = b"vFile:setfs:"
-    VFILE_OPEN = b"vFile:open:"
-    VFILE_PREAD = b"vFile:pread:"
 
-class StubFeatures(bytes, Enum):
+class GDBStubFeatures(bytes, Enum):
     """Supported features. Features can be either query commands or indications on stub's capabilities (e.g. threading support).
     See https://sourceware.org/gdb/current/onlinedocs/gdb.html/General-Query-Packets.html#qSupported for a comprehensive list."""
-
-    TDESCR_READ_FEATURE = b"qXfer:features:read"
-    EXECFILE_READ_FEATURE = b'qXfer:exec-file:read'
-    VCONT_FEATURE = b"vContSupported"
-    MULTIPROC_FEATURE = b"multiprocess"
+    GDBSTUB_TDESCR_READ_FEATURE = b"qXfer:features:read"
+    GDBSTUB_EXECFILE_READ_FEATURE = b'qXfer:exec-file:read'
+    GDBSTUB_VCONT_FEATURE = b"vContSupported"
+    GDBSTUB_MULTIPROC_FEATURE = b"multiprocess"

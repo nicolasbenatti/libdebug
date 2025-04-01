@@ -4,7 +4,7 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-from libdebug.gdb_stub.gdb_stub_constants import StubFeatures
+from libdebug.gdb_stub.gdb_stub_constants import GDBStubFeatures
 
 
 class GdbStubCallbacks:
@@ -62,7 +62,7 @@ class GdbStubCallbacks:
         escaped = GdbStubCallbacks.default_callback(resp)
         remote_feats = escaped.split(b';')[1:] # Discard `PacketSize`
         
-        supported_feats = [feat.value for feat in StubFeatures]
+        supported_feats = [feat.value for feat in GDBStubFeatures]
         for feat in supported_feats:
             if feat+b'+' not in remote_feats:
                 raise RuntimeError(f"Stub doesn't support the following feature: {str(feat)}")
