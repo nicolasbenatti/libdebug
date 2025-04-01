@@ -50,6 +50,8 @@ def receive_stub_packet(cmd: str, stub: socket):
         return bytes()
 
     resp = stub.recv(GDBSTUB_MAX_PAYLOAD_LEN)
+    if len(resp) == 0:
+        raise RuntimeError("Got empty reply, connection is probably closed")
     if resp[0] == ord(GDBSTUB_ORDINARY_PACKET_INITIAL_BYTE):
         send_ack(stub)
     

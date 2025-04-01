@@ -197,7 +197,23 @@ class GdbStubInterface(DebuggingInterface):
             resp = receive_stub_packet(cmd, self.stub)
         
         return data
-
+    
+    def check_termination(self, resp: bytes):
+        """Check whether the remote process is not running anymore after a client command (continue/step/step_until)
+        See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Stop-Reply-Packets.html#Stop-Reply-Packets for more info.
+        
+        Args:
+            resp (bytes): The escaped stub reply"""
+        if resp[0] == ord(b'W'):
+            liblog.debugger(f"GDBSTUB: remote process exited with status {int(resp[1:3])}")
+            self.reset()
+        elif resp[0] == ord(b'X'):
+            liblog.debugger(f"GDBSTUB: remote process terminated with signal {int(resp[1:3])}")
+            self.reset()
+        elif resp == b'N':
+            self.reset()
+            liblog.debugger("GDBSTUB: process is alive, but no running threads")
+        
     def run(self):
         """Runs the specified process."""
         self.is_attached_process = False
@@ -380,6 +396,7 @@ class GdbStubInterface(DebuggingInterface):
         cmd = b"vCont;c:p"+int2hexbstr(self.process_id)+b'.-1'
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
+        self.check_termination(resp)
 
         # Update registers for all threads
         for thread in self.context.threads:
@@ -401,6 +418,7 @@ class GdbStubInterface(DebuggingInterface):
         cmd = b'vCont;s:p'+int2hexbstr(self.process_id)+b'.'+int2hexbstr(thread.thread_id)
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
+        self.check_termination(resp)
 
         # Update registers in the thread context
         regfile, thread.registers.register_blob = self._fetch_register_file(thread.registers.register_info)
