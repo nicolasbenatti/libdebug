@@ -516,13 +516,20 @@ class GdbStubInterface(DebuggingInterface):
         in the parent process since we are going to write to stdin and read from
         stdout and stderr
         """
-        try:
-            os.close(self.stdin_read)
-            os.close(self.stdout_write)
-            os.close(self.stderr_write)
-        except Exception as e:
-            # TODO: Custom exception
-            raise Exception("Closing fds failed: %r" % e)
+        if self.is_attached_process:
+            self.stdin_write = "/tmp/libdebug_fifo"
+            #os.mkfifo(self.stdin_write)
+            self.stdout_read = f"/proc/{self.qemu_pid}/fd/1"
+            self.stderr_read = f"/proc/{self.qemu_pid}/fd/2"
+        else:
+            try:
+                os.close(self.stdin_read)
+                os.close(self.stdout_write)
+                os.close(self.stderr_write)
+            except Exception as e:
+                # TODO: Custom exception
+                raise Exception("Closing fds failed: %r" % e)
+        
         return PipeManager(self.stdin_write, self.stdout_read, self.stderr_read)
 
     def _setup_parent(self, continue_to_entry_point: bool):
