@@ -415,6 +415,9 @@ class GdbStubInterface(DebuggingInterface):
         """Continues the execution of the process."""
         if self.stub is None:
             raise RuntimeError("Not connected to any stub, quitting...")
+
+        for thread in self.context.threads: 
+            self.step(thread)
         
         # Enable all breakpoints if they were disabled for a single step
         changed = []
@@ -435,7 +438,6 @@ class GdbStubInterface(DebuggingInterface):
         for thread in self.context.threads:
             self._update_register_file(thread.registers)
 
-        self.step(thread) # Try with GDB and you'll see that cont == step + cont
         cmd = b"vCont;c:p"+int2hexbstr(self.remote_process_id)+b'.-1'
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
