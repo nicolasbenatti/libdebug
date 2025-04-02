@@ -545,8 +545,27 @@ class GdbStubInterface(DebuggingInterface):
         raise RuntimeError("This method should never be called.")
 
     def wait(self) -> bool:
-        # TODO
-        pass
+        """Waits for the process to stop. Returns True if the wait has to be repeated."""
+        # Check if any breakpoint has been hit, and run
+        # the associated callback (if any)
+        for thread in self.context.threads:
+            active_bps = {}
+            for bp in self.context.breakpoints.values():
+                if bp.enabled and not bp._disabled_for_step:
+                    active_bps[bp.address] = bp
+            
+            ip = thread.rip
+            bp = None
+            if ip in active_bps:
+                # NOTE: there is currently no distinction
+                # between hw and sw breakpoints in qemu user-mode
+                bp = self.context.breakpoints[ip]
+            
+            if bp:
+                bp.hit_count += 1
+
+                if bp.callback:
+                    bp.callback(thread, bp)
 
     def migrate_to_gdb(self):
         """Migrates the current process to GDB."""
