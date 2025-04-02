@@ -7,6 +7,7 @@
 import errno
 import os
 import signal
+import psutil
 import pty
 from time import sleep
 import tty
@@ -89,8 +90,11 @@ class GdbStubInterface(DebuggingInterface):
     register_holder: GdbRegisterHolder = None
     """Tells the interface how to parse the register blob coming from the stub."""
 
-    process_id: int | None
+    qemu_pid: int | None
     """The process ID of the QEMU instance"""
+
+    remote_process_id: int | None
+    """The process ID of the debugged process"""
 
     stub: socket = None
     """The socket used to connect to the stub"""
@@ -120,7 +124,8 @@ class GdbStubInterface(DebuggingInterface):
         # Disable namespace processing to avoid issues
         self.parser = expat.ParserCreate('ascii', None)
 
-        self.process_id = 0
+        self.qemu_pid = 0
+        self.remote_process_id = 0
 
         self.hardware_bp_helpers = {}
 
@@ -133,7 +138,8 @@ class GdbStubInterface(DebuggingInterface):
         if self.stub != None:
             self.stub.close()
             self.stub = None
-        self.process_id = 0
+        self.qemu_pid = 0
+        self.remote_process_id = 0
 
     def _fetch_target_description(self, filename: str):
         """Reads a target description from the remote process.
@@ -220,6 +226,22 @@ class GdbStubInterface(DebuggingInterface):
         
         return False
 
+    def _get_qemu_instance_pid(self, port: int):
+        """Looks for the PID of the qemu instance listening on the specified port
+        
+        Args:
+            port (int): The port on which qemu gdbstub is listening on.
+        """
+        assert self.is_attached_process is True
+
+        connections = psutil.net_connections()
+        for conn in connections:
+            p = conn.laddr.port
+            if conn.status == "LISTEN" and p == port:
+                return conn.pid
+        else:
+            raise RuntimeError("Cannot find pid of QEMU instance")
+
     def run(self):
         """Runs the specified process."""
         self.is_attached_process = False
@@ -258,8 +280,8 @@ class GdbStubInterface(DebuggingInterface):
             setpgroup=0,
         )
 
-        """ self.process_id = child_pid
-        self.context.process_id = child_pid """
+        self.qemu_pid = child_pid
+        self.context.process_id = child_pid
         self.context.pipe_manager = self._setup_pipe()
         
         # Don't connect to qemu too fast, the stub may not be there yet
@@ -281,7 +303,7 @@ class GdbStubInterface(DebuggingInterface):
         cmd = b'qC'
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
-        self.process_id = resp.pid
+        self.remote_process_id = resp.pid
         self.context.process_id = resp.pid
         thread_id = resp.tid
 
@@ -295,7 +317,7 @@ class GdbStubInterface(DebuggingInterface):
         
         self.register_new_thread(thread_id, registers_info)
         
-        cmd = b"qXfer:exec-file:read:"+ int2hexbstr(self.process_id) +b":0,ffb"
+        cmd = b"qXfer:exec-file:read:"+ int2hexbstr(self.remote_process_id) +b":0,ffb"
         self.stub.send(prepare_stub_packet(cmd))
         elf_fname = receive_stub_packet(cmd, self.stub)
         self.executable_path = elf_fname.decode('ascii')
@@ -306,18 +328,29 @@ class GdbStubInterface(DebuggingInterface):
         Args:
             port (int): The port at which the stub is listening.
         """
-        # TODO: When attaching to a process with GDB stub, we actually specify
-        # the port at which the stub is listening to, not the PID.
-
         self.is_attached_process = True
+        
+        # Creating pipes for stdin, stdout, stderr
+        self.stdin_read, self.stdin_write = os.pipe()
+        self.stdout_read, self.stdout_write = pty.openpty()
+        self.stderr_read, self.stderr_write = pty.openpty()
+        
+        # Setting stdout, stderr to raw mode to avoid terminal control codes interfering with the
+        # output
+        tty.setraw(self.stdout_read)
+        tty.setraw(self.stderr_read)
+        
         self.stub = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.stub.connect(("localhost", self.GDB_STUB_PORT))
         except Exception as e:
             raise Exception("Error when connecting to GDB stub, is QEMU running?")
         stub_info = self.stub.getpeername()
-        self.context.process_id = port
-        print(f"Connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
+        print(f"Connected to GDB stub at {stub_info[0]}:{stub_info[1]}")
+        
+        self.qemu_pid = self._get_qemu_instance_pid(port)
+        self.context.pipe_manager = self._setup_pipe()
+        print(f"PID of qemu instance is {self._get_qemu_instance_pid(port)}")
 
         # Enable supported features
         cmd = b'qSupported:'+get_supported_features()+b'swbreak+;hwbreak+'
@@ -327,7 +360,7 @@ class GdbStubInterface(DebuggingInterface):
         cmd = b'qC'
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
-        self.process_id = resp.pid
+        self.remote_process_id = resp.pid
         self.context.process_id = resp.pid
         thread_id = resp.tid
 
@@ -341,7 +374,7 @@ class GdbStubInterface(DebuggingInterface):
 
         self.register_new_thread(thread_id, registers_info)
 
-        cmd = b"qXfer:exec-file:read:"+ int2hexbstr(self.process_id) +b":0,ffb"
+        cmd = b"qXfer:exec-file:read:"+int2hexbstr(self.remote_process_id)+b":0,ffb"
         self.stub.send(prepare_stub_packet(cmd))
         elf_fname = receive_stub_packet(cmd, self.stub)
 
@@ -367,16 +400,16 @@ class GdbStubInterface(DebuggingInterface):
 
     def kill(self):
         """Instantly terminates the process."""
-        assert self.process_id is not None
+        assert self.remote_process_id is not None
 
-        cmd = b'vKill;'+int2hexbstr(self.process_id)
+        cmd = b'vKill;'+int2hexbstr(self.remote_process_id)
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
         if resp == b"OK":
             self.stub.close()
             if self.is_attached_process == False:
                 # Wait for the child QEMU instance to terminate
-                os.waitpid(self.process_id, 0)
+                os.waitpid(self.qemu_pid, 0)
 
     def cont(self):
         """Continues the execution of the process."""
@@ -403,10 +436,10 @@ class GdbStubInterface(DebuggingInterface):
             self._update_register_file(thread.registers)
 
         self.step(thread) # Try with GDB and you'll see that cont == step + cont
-        cmd = b"vCont;c:p"+int2hexbstr(self.process_id)+b'.-1'
+        cmd = b"vCont;c:p"+int2hexbstr(self.remote_process_id)+b'.-1'
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
-        if self.should_disconnect(resp):
+        if self._should_disconnect(resp):
             return
 
         # Update registers for all threads
@@ -429,10 +462,10 @@ class GdbStubInterface(DebuggingInterface):
         # Flush register updates from the context.
         self._update_register_file(thread.registers)
 
-        cmd = b'vCont;s:p'+int2hexbstr(self.process_id)+b'.'+int2hexbstr(thread.thread_id)
+        cmd = b'vCont;s:p'+int2hexbstr(self.remote_process_id)+b'.'+int2hexbstr(thread.thread_id)
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
-        if self.should_disconnect(resp):
+        if self._should_disconnect(resp):
             return
 
         # Update registers in the thread context
@@ -671,7 +704,7 @@ class GdbStubInterface(DebuggingInterface):
 
     def maps(self) -> list[MemoryMap]:
         """Returns the memory maps of the process."""
-        assert self.process_id is not None
+        assert self.remote_process_id is not None
 
         # NOTE: QEMU gdbstub implementation doesn't currently support
         # reading memory maps from a process/thread. Therefore return a
