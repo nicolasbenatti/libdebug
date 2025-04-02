@@ -6,6 +6,7 @@
 
 from enum import Enum
 
+GDBSTUB_DEFAULT_PORT = 3333
 GDBSTUB_MAX_PACKET_LEN = 4096 # Bytes
 GDBSTUB_MAX_PAYLOAD_LEN = GDBSTUB_MAX_PACKET_LEN - 5 # Not counting delimiters and checksum
 GDBSTUB_ORDINARY_PACKET_INITIAL_BYTE = b'$'
