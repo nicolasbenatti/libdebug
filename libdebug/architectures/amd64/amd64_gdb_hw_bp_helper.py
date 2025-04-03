@@ -15,7 +15,7 @@ from libdebug.gdb_stub.gdb_stub_utils import (
     receive_stub_packet,
     int2hexbstr
 )
-from libdebug.state.debugging_context import DebuggingContext
+from libdebug.state.debugging_context import provide_context
 
 AMD64_DBREGS_COUNT = 4
 
@@ -35,9 +35,9 @@ class Amd64GdbHardwareBreakpointManager(GdbHardwareBreakpointManager):
     def __init__(
         self,
         thread: ThreadContext,
-        context: DebuggingContext
     ):
-        super().__init__(thread, context)
+        super().__init__(thread)
+        self.context = provide_context(self)
 
     def install_breakpoint(self, bp: Breakpoint):
         """Installs a hardware breakpoint at the provided location."""

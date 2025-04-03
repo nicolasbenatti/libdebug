@@ -22,7 +22,5 @@ class GdbHardwareBreakpointManager(HardwareBreakpointManager):
     def __init__(
         self,
         thread: ThreadContext,
-        context: DebuggingContext
     ):
         super().__init__(thread)
-        self.context = context

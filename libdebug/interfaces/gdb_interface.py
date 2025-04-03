@@ -601,7 +601,8 @@ class GdbStubInterface(DebuggingInterface):
         link_context(thread, self)
 
         self.context.insert_new_thread(thread)
-        thread_hw_bp_helper = gdb_hardware_breakpoint_manager_provider(thread, self.context)
+        with context_extend_from(self):
+            thread_hw_bp_helper = gdb_hardware_breakpoint_manager_provider(thread)
         self.hardware_bp_helpers[new_thread_id] = thread_hw_bp_helper
 
         # For any hardware breakpoints, we need to reapply them to the new thread

@@ -11,19 +11,17 @@ from libdebug.architectures.ptrace_hardware_breakpoint_manager import (
     PtraceHardwareBreakpointManager,
 )
 from libdebug.state.thread_context import ThreadContext
-from libdebug.state.debugging_context import DebuggingContext
 from libdebug.utils.libcontext import libcontext
 
 
 def gdb_hardware_breakpoint_manager_provider(
     thread: ThreadContext,
-    context: DebuggingContext
 ) -> PtraceHardwareBreakpointManager:
     """Returns an instance of the hardware breakpoint manager to be used by the `_InternalDebugger` class."""
     architecture = libcontext.arch
 
     match architecture:
         case "amd64":
-            return Amd64GdbHardwareBreakpointManager(thread, context)
+            return Amd64GdbHardwareBreakpointManager(thread)
         case _:
             raise NotImplementedError(f"Architecture {architecture} not available.")
