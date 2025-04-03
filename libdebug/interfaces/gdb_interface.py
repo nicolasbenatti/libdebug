@@ -113,7 +113,8 @@ class GdbStubInterface(DebuggingInterface):
     """Whether libdebug was attached to a running stub or directly spawned the QEMU instance"""
 
     executable_path: str
-    """Absolute path of the program running on the stub"""
+    last_reply: object
+    """The last reply we got from the stub."""    
 
     def __init__(self):
         super().__init__()
@@ -304,6 +305,10 @@ class GdbStubInterface(DebuggingInterface):
         self.stub.send(prepare_stub_packet(cmd))
         receive_stub_packet(cmd, self.stub)
 
+        cmd = b"QCatchSyscalls:1"
+        self.stub.send(prepare_stub_packet(cmd))
+        receive_stub_packet(cmd, self.stub)
+        
         cmd = b'qC'
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
@@ -361,6 +366,10 @@ class GdbStubInterface(DebuggingInterface):
 
         # Enable supported features
         cmd = b'qSupported:'+get_supported_features()+b'swbreak+;hwbreak+'
+        self.stub.send(prepare_stub_packet(cmd))
+        receive_stub_packet(cmd, self.stub)
+
+        cmd = b"QCatchSyscalls:1"
         self.stub.send(prepare_stub_packet(cmd))
         receive_stub_packet(cmd, self.stub)
 
@@ -441,13 +450,20 @@ class GdbStubInterface(DebuggingInterface):
             else:
                 self.unset_breakpoint(bp, delete=False)
 
+        for hook in self.context.syscall_hooks.values():
+            if hook.enabled:
+                self.syscall_hooks_enabled = True
+                break
+        else:
+            self.syscall_hooks_enabled = False
+
         # Flush register updates in all threads
         for thread in self.context.threads:
             self._update_register_file(thread.registers)
 
         cmd = b"vCont;c:p"+int2hexbstr(self.remote_process_id)+b'.-1'
         self.stub.send(prepare_stub_packet(cmd))
-        resp = receive_stub_packet(cmd, self.stub)
+        self.last_reply = receive_stub_packet(cmd, self.stub)
         if self._should_disconnect(self.last_reply):
             return
 
@@ -473,7 +489,7 @@ class GdbStubInterface(DebuggingInterface):
 
         cmd = b'vCont;s:p'+int2hexbstr(self.remote_process_id)+b'.'+int2hexbstr(thread.thread_id)
         self.stub.send(prepare_stub_packet(cmd))
-        resp = receive_stub_packet(cmd, self.stub)
+        self.last_reply = receive_stub_packet(cmd, self.stub)
         if self._should_disconnect(self.last_reply):
             return
 
@@ -553,26 +569,9 @@ class GdbStubInterface(DebuggingInterface):
 
     def wait(self) -> bool:
         """Waits for the process to stop. Returns True if the wait has to be repeated."""
-        # Check if any breakpoint has been hit, and run
-        # the associated callback (if any)
-        for thread in self.context.threads:
-            active_bps = {}
-            for bp in self.context.breakpoints.values():
-                if bp.enabled and not bp._disabled_for_step:
-                    active_bps[bp.address] = bp
-            
-            ip = thread.rip
-            bp = None
-            if ip in active_bps:
-                # NOTE: there is currently no distinction
-                # between hw and sw breakpoints in qemu user-mode
-                bp = self.context.breakpoints[ip]
-            
-            if bp:
-                bp.hit_count += 1
+        repeat = self.status_handler._handle_status_change() 
 
-                if bp.callback:
-                    bp.callback(thread, bp)
+        return repeat
 
     def migrate_to_gdb(self):
         """Migrates the current process to GDB."""
@@ -705,8 +704,7 @@ class GdbStubInterface(DebuggingInterface):
         Args:
             hook (SyscallHook): The syscall hook to set.
         """
-        # TODO
-        pass
+        self.context.insert_new_syscall_hook(hook)
 
     def unset_syscall_hook(self, hook: SyscallHook):
         """Unsets a syscall hook.
@@ -714,8 +712,7 @@ class GdbStubInterface(DebuggingInterface):
         Args:
             hook (SyscallHook): The syscall hook to unset.
         """
-        # TODO
-        pass
+        self.context.remove_syscall_hook(hook)
 
     def peek_memory(self, address: int) -> int:
         """Reads the memory at the specified address."""
