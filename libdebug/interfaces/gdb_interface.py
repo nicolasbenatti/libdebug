@@ -246,6 +246,25 @@ class GdbStubInterface(DebuggingInterface):
         else:
             raise RuntimeError("Cannot find pid of QEMU instance")
 
+    def _download_executable(self, executable_path):
+        liblog.debugger("Executable file is not on local machine, downloading...")
+        cmd = b"vFile:setfs:0"
+        self.stub.send(prepare_stub_packet(cmd))
+        receive_stub_packet(cmd, self.stub)
+
+        cmd = b"vFile:open:"+bstr2hex(executable_path)+b",0,0"
+        self.stub.send(prepare_stub_packet(cmd))
+        fd = receive_stub_packet(cmd, self.stub)
+
+        elf = self._fetch_elf_file(int(fd))
+        remote_exec_path = os.getcwd()+"/../../remote_binaries/"+remote_exec_path.split("/")[-1]
+        with open(remote_exec_path, "wb") as f:
+            f.write(elf)
+            f.close()
+        liblog.debugger("DONE")
+
+        return remote_exec_path
+
     def run(self):
         """Runs the specified process."""
         self.is_attached_process = False
@@ -394,27 +413,14 @@ class GdbStubInterface(DebuggingInterface):
 
         cmd = b"qXfer:exec-file:read:"+int2hexbstr(self.remote_process_id)+b":0,ffb"
         self.stub.send(prepare_stub_packet(cmd))
-        elf_fname = receive_stub_packet(cmd, self.stub)
+        remote_elf_path = receive_stub_packet(cmd, self.stub)
 
         # if the remote is on another machine, try to download the executable
-        if not os.path.exists(elf_fname):
-            liblog.debugger("Executable file is not on local machine, downloading...")
-            cmd = b"vFile:setfs:0"
-            self.stub.send(prepare_stub_packet(cmd))
-            resp = receive_stub_packet(cmd, self.stub)
-
-            cmd = b"vFile:open:"+bstr2hex(elf_fname)+b",0,0"
-            self.stub.send(prepare_stub_packet(cmd))
-            fd = receive_stub_packet(cmd, self.stub)
-
-            elf = self._fetch_elf_file(int(fd))
-            elf_fname = os.getcwd()+"/../../remote_binaries/"+elf_fname.split("/")[-1]
-            with open(elf_fname, "wb") as f:
-                f.write(elf)
-                f.close()
-            liblog.debugger("DONE")
-    
-        self.executable_path = elf_fname.decode('ascii')
+        if not os.path.exists(remote_elf_path):
+            local_elf_path = remote_elf_path = self._download_executable(remote_elf_path)
+        else:
+            local_elf_path = remote_elf_path
+        self.executable_path = local_elf_path.decode('ascii')
 
     def kill(self):
         """Instantly terminates the process."""
