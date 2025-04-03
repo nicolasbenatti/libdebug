@@ -205,21 +205,21 @@ class GdbStubInterface(DebuggingInterface):
         
         return data
     
-    def should_disconnect(self, resp: bytes):
+    def _should_disconnect(self, resp: bytes):
         """Check whether the remote process is not running anymore after a client command (continue/step/step_until)
-        See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Stop-Reply-Packets.html#Stop-Reply-Packets for more info.
         
         Args:
-            resp (bytes): The escaped stub reply"""
-        if resp[0] == ord(b'W'):
-            liblog.debugger(f"GDBSTUB: remote process exited with status {int(resp[1:3])}")
+            resp (bytes): The escaped stub reply.
+        """
+        if resp.msgtype == ord(b'W'):
+            liblog.debugger(f"GDBSTUB: remote process exited with status {int(resp.status)}")
             self.reset()
             return True
-        elif resp[0] == ord(b'X'):
-            liblog.debugger(f"GDBSTUB: remote process terminated with signal {int(resp[1:3])}")
+        elif resp.msgtype == ord(b'X'):
+            liblog.debugger(f"GDBSTUB: remote process terminated with signal {int(resp.signal)}")
             self.reset()
             return True
-        elif resp == b'N':
+        elif resp.msgtype == b'N':
             liblog.debugger("GDBSTUB: process is alive, but no running threads")
             self.reset()
             return True
@@ -441,7 +441,7 @@ class GdbStubInterface(DebuggingInterface):
         cmd = b"vCont;c:p"+int2hexbstr(self.remote_process_id)+b'.-1'
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
-        if self._should_disconnect(resp):
+        if self._should_disconnect(self.last_reply):
             return
 
         # Update registers for all threads
@@ -467,7 +467,7 @@ class GdbStubInterface(DebuggingInterface):
         cmd = b'vCont;s:p'+int2hexbstr(self.remote_process_id)+b'.'+int2hexbstr(thread.thread_id)
         self.stub.send(prepare_stub_packet(cmd))
         resp = receive_stub_packet(cmd, self.stub)
-        if self._should_disconnect(resp):
+        if self._should_disconnect(self.last_reply):
             return
 
         # Update registers in the thread context

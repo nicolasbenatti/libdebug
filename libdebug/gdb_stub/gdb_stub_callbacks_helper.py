@@ -29,5 +29,7 @@ def gdb_stub_callback_provider(last_cmd: bytes):
             return GdbStubCallbacks.vfile_pread_callback
         case GDBStubCommands.GDBSTUB_GET_PID_TID:
             return GdbStubCallbacks.qc_callback
+        case GDBStubCommands.GDBSTUB_CONTINUE | GDBStubCommands.GDBSTUB_STEP:
+            return GdbStubCallbacks.vcont_callback
         case _:
             return GdbStubCallbacks.default_callback

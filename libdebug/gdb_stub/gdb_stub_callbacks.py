@@ -6,7 +6,6 @@
 
 from libdebug.gdb_stub.gdb_stub_constants import GDBStubFeatures
 
-
 class GdbStubCallbacks:
     """A class that provides callbacks for the most common commands of GDB stub.
     The callbacks are meant to be called upon reception of a packet and allow to 
@@ -77,7 +76,42 @@ class GdbStubCallbacks:
         
         # strip initial 'l' indicating "no more data to read"
         return escaped[1:]
-    
+
+    def vcont_callback(resp: bytes):
+        """Extracts information from a stop reply packet.
+        See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Stop-Reply-Packets.html#Stop-Reply-Packets for details.
+
+        Args:
+            resp (bytes): The raw stub reply.
+        """
+        escaped = GdbStubCallbacks.default_callback(resp)
+        bundle = lambda: None
+        bundle.msgtype = escaped[0]
+        if bundle.msgtype == ord(b'T'):
+            bundle.signal = int(escaped[1:3])
+            additional_info = escaped[3:].split(b';')[0:-1]
+            bundle.is_syscall_trap = False
+            bundle.is_breakpoint_trap = False
+            for infopair in additional_info:
+                n, r = infopair.split(b':')
+                if n == b'thread':
+                    bundle.pid, bundle.tid = [int(el, 16) for el in r[1:].split(b'.')]
+                elif n == b'syscall_entry' or n == b'syscall_return':
+                    bundle.is_syscall_trap = True
+                    bundle.syscall_number = int(r, 16)
+            if not bundle.is_syscall_trap:
+                bundle.is_breakpoint_trap = True
+
+        elif bundle.msgtype == ord(b'W'):
+            bundle.status = int(escaped[1:3], 16)
+        elif bundle.msgtype == ord(b'X'):
+            bundle.signal = int(escaped[1:3], 16)
+        elif bundle.msgtype == ord(b'W'):
+            bundle.signal = int(escaped[1:3], 16)
+            bundle.tid = int(escaped[4:], 16)
+
+        return bundle
+
     def vfile_open_callback(resp: bytes):
         """Extracts the file descriptor of the requested file.
         
