@@ -92,27 +92,29 @@ class GdbStubInterface(DebuggingInterface):
     """Tells the interface how to parse the register blob coming from the stub."""
 
     qemu_pid: int | None
-    """The process ID of the QEMU instance"""
+    """The process ID of the QEMU instance."""
 
     remote_process_id: int | None
-    """The process ID of the debugged process"""
+    """The process ID of the debugged process."""
 
     stub: socket = None
-    """The socket used to connect to the stub"""
+    """The socket used to connect to the stub."""
 
     parser: expat.XMLParserType = None
     """Target description file parser."""
 
     GDB_STUB_PORT: int
-    """Default port of the QEMU gdbstub"""
+    """Default port of the QEMU gdbstub."""
 
     syscall_hooks_enabled: bool
     """Whether syscall hooks are enabled for the current context or not."""
 
     is_attached_process: bool
-    """Whether libdebug was attached to a running stub or directly spawned the QEMU instance"""
+    """Whether libdebug was attached to a running stub or directly spawned the QEMU instance."""
 
     executable_path: str
+    """Absolute path of the program running on the stub."""
+
     last_reply: object
     """The last reply we got from the stub."""    
 
@@ -290,7 +292,7 @@ class GdbStubInterface(DebuggingInterface):
         self.context.pipe_manager = self._setup_pipe()
         
         # Don't connect to qemu too fast, the stub may not be there yet
-        # TODO: better handling
+        # TODO: better handling?
         sleep(0.1)
 
         # Connect to the stub
@@ -396,7 +398,7 @@ class GdbStubInterface(DebuggingInterface):
 
         # if the remote is on another machine, try to download the executable
         if not os.path.exists(elf_fname):
-            print("Executable file is not on local machine, downloading...", end="")
+            liblog.debugger("Executable file is not on local machine, downloading...")
             cmd = b"vFile:setfs:0"
             self.stub.send(prepare_stub_packet(cmd))
             resp = receive_stub_packet(cmd, self.stub)
@@ -410,7 +412,7 @@ class GdbStubInterface(DebuggingInterface):
             with open(elf_fname, "wb") as f:
                 f.write(elf)
                 f.close()
-            print("DONE")
+            liblog.debugger("DONE")
     
         self.executable_path = elf_fname.decode('ascii')
 
@@ -740,7 +742,7 @@ class GdbStubInterface(DebuggingInterface):
 
         # NOTE: QEMU gdbstub implementation doesn't currently support
         # reading memory maps from a process/thread. Therefore return a
-        # dummy map so not to make already existing logic fail
+        # dummy map so not to break existing logic
         start = 0x0000000000000000
         end = 0xffffffffffffffff
         permissions = "rwxp"
