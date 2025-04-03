@@ -24,16 +24,16 @@ from libdebug.architectures.gdb_hardware_breakpoint_provider import (
 from libdebug.architectures.register_helper import register_holder_provider
 from libdebug.data.breakpoint import Breakpoint
 from libdebug.data.memory_map import MemoryMap
-from libdebug.gdb_stub.gdb_stub_status_handler import GdbStubStatusHandler
+from libdebug.gdbstub.gdbstub_status_handler import GdbStubStatusHandler
 from libdebug.data.register_holder import GdbRegisterHolder
 from libdebug.architectures.amd64.amd64_gdb_register_holder import Amd64GdbRegisterHolder
-from libdebug.gdb_stub.gdb_stub_constants import (
+from libdebug.gdbstub.gdbstub_constants import (
     GDBStubCommands,
     GDBStubReplies,
     GDBSTUB_MAIN_TARGET_DESCRIPTION_FILENAME
 )
-from libdebug.gdb_stub.register_parser_helper import register_parser_provider
-from libdebug.gdb_stub.register_parser import RegisterInfo
+from libdebug.gdbstub.register_parser_helper import register_parser_provider
+from libdebug.gdbstub.register_parser import RegisterInfo
 from libdebug.data.syscall_hook import SyscallHook
 from libdebug.interfaces.debugging_interface import DebuggingInterface
 from libdebug.liblog import liblog
@@ -45,7 +45,7 @@ from libdebug.state.debugging_context import (
 from libdebug.state.debugging_context import DebuggingContext
 from libdebug.state.thread_context import ThreadContext
 from libdebug.utils import posix_spawn
-from libdebug.gdb_stub.gdb_stub_utils import (
+from libdebug.gdbstub.gdbstub_utils import (
     send_ack,
     prepare_stub_packet,
     receive_stub_packet,

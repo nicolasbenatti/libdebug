@@ -7,8 +7,8 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from libdebug.gdb_stub.register_parser import RegisterInfo
-from libdebug.gdb_stub.gdb_stub_utils import (
+from libdebug.gdbstub.register_parser import RegisterInfo
+from libdebug.gdbstub.gdbstub_utils import (
     hexbstr2int_le
 )
 

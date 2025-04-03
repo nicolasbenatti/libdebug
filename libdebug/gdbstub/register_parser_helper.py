@@ -5,7 +5,7 @@
 #
 
 from libdebug.architectures.amd64.amd64_gdb_register_holder import Amd64RegisterInfoParser
-from libdebug.gdb_stub.register_parser import RegisterInfoParser
+from libdebug.gdbstub.register_parser import RegisterInfoParser
 from libdebug.utils.libcontext import libcontext
 
 

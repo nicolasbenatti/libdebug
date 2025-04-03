@@ -10,7 +10,7 @@ from libdebug.architectures.gdb_hardware_breakpoint_manager import (
 from libdebug.data.breakpoint import Breakpoint
 from libdebug.liblog import liblog
 from libdebug.state.thread_context import ThreadContext
-from libdebug.gdb_stub.gdb_stub_utils import (
+from libdebug.gdbstub.gdbstub_utils import (
     prepare_stub_packet,
     receive_stub_packet,
     int2hexbstr

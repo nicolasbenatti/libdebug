@@ -4,7 +4,7 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-from libdebug.gdb_stub.gdb_stub_constants import GDBStubFeatures
+from libdebug.gdbstub.gdbstub_constants import GDBStubFeatures
 
 class GdbStubCallbacks:
     """A class that provides callbacks for the most common commands of GDB stub.

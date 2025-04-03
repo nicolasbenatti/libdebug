@@ -4,8 +4,8 @@
 # Licensed under the MIT license. See LICENSE file in the project root for details.
 #
 
-from libdebug.gdb_stub.gdb_stub_callbacks import GdbStubCallbacks
-from libdebug.gdb_stub.gdb_stub_constants import GDBStubCommands
+from libdebug.gdbstub.gdbstub_callbacks import GdbStubCallbacks
+from libdebug.gdbstub.gdbstub_constants import GDBStubCommands
 
 
 def gdb_stub_callback_provider(last_cmd: bytes):

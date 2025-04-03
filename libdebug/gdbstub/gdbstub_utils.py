@@ -8,9 +8,9 @@ import socket
 import math
 import errno
 
-from libdebug.gdb_stub.gdb_stub_callbacks_helper import gdb_stub_callback_provider
+from libdebug.gdbstub.gdbstub_callbacks_helper import gdb_stub_callback_provider
 from libdebug.liblog import liblog
-from libdebug.gdb_stub.gdb_stub_constants import (
+from libdebug.gdbstub.gdbstub_constants import (
     GDBSTUB_MAX_PAYLOAD_LEN,
     GDBSTUB_ORDINARY_PACKET_INITIAL_BYTE,
     GDBSTUB_REPLY_UNSUPPORTED,

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from libdebug.data.register_holder import GdbRegisterHolder
-from libdebug.gdb_stub.register_parser import (
+from libdebug.gdbstub.register_parser import (
     RegisterInfoParser,
     RegisterInfo
 )
