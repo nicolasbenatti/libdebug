@@ -24,6 +24,7 @@ from libdebug.architectures.gdb_hardware_breakpoint_provider import (
 from libdebug.architectures.register_helper import register_holder_provider
 from libdebug.data.breakpoint import Breakpoint
 from libdebug.data.memory_map import MemoryMap
+from libdebug.gdb_stub.gdb_stub_status_handler import GdbStubStatusHandler
 from libdebug.data.register_holder import GdbRegisterHolder
 from libdebug.architectures.amd64.amd64_gdb_register_holder import Amd64GdbRegisterHolder
 from libdebug.gdb_stub.gdb_stub_constants import (
@@ -245,6 +246,9 @@ class GdbStubInterface(DebuggingInterface):
     def run(self):
         """Runs the specified process."""
         self.is_attached_process = False
+        # Setup gdbstub wait status handler after debugging_context has been properly initialized
+        with context_extend_from(self):
+            self.status_handler = GdbStubStatusHandler()
 
         argv = self.context.argv
         env = self.context.env
@@ -329,6 +333,9 @@ class GdbStubInterface(DebuggingInterface):
             port (int): The port at which the stub is listening.
         """
         self.is_attached_process = True
+        # Setup gdbstub wait status handler after debugging_context has been properly initialized
+        with context_extend_from(self):
+            self.status_handler = GdbStubStatusHandler()
         
         # Creating pipes for stdin, stdout, stderr
         self.stdin_read, self.stdin_write = os.pipe()
