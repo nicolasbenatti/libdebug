@@ -351,6 +351,9 @@ class GdbStubInterface(DebuggingInterface):
         self.stub.send(prepare_stub_packet(cmd))
         elf_fname = receive_stub_packet(cmd, self.stub)
         self.executable_path = elf_fname.decode('ascii')
+        
+        continue_to_entry_point = self.context.autoreach_entrypoint
+        self._setup_parent(continue_to_entry_point)
 
     def attach(self, port: int):
         """Attaches to the specified process.
@@ -567,7 +570,25 @@ class GdbStubInterface(DebuggingInterface):
         """
         Sets up the parent process after the child process has been created or attached to.
         """
-        pass
+        if not self.is_attached_process:
+            liblog.debugger("Child process ready")
+
+        if continue_to_entry_point:
+            # Now that the process is running, we must continue until we have reached the entry point
+            entry_point = get_entry_point(self.executable_path)
+            print(f"ENTRY POINT IS AT {entry_point:0x}")
+
+            # For PIE binaries, the entry point is a relative address
+            #entry_point = normalize_and_validate_address(entry_point, self.maps())
+
+            bp = Breakpoint(entry_point, hardware=True)
+            self.set_breakpoint(bp)
+
+            self.cont()
+            while self.wait():
+                self.cont()
+
+            self.unset_breakpoint(bp)
 
     def get_register_holder(self, thread_id: int) -> GdbRegisterHolder:
         """Returns the current value of all the available registers.
