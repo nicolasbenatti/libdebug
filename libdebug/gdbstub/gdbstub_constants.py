@@ -37,11 +37,6 @@ class GDBStubCommands(bytes, Enum):
     GBSTUB_VFILE_OPEN = b"vFile:open:"
     GDBSTUB_VFILE_PREAD = b"vFile:pread:"
 
-class GDBStubReplies(bytes, Enum):
-    """Relevant stub replies."""
-    GDBSTUB_SYSCALL_ENTRY = b"syscall_entry"
-    GDBSTUB_SYSCALL_EXIT = b"syscall_exit"
-
 class GDBStubFeatures(bytes, Enum):
     """Supported features. Features can be either query commands or indications on stub's capabilities (e.g. threading support).
     See https://sourceware.org/gdb/current/onlinedocs/gdb.html/General-Query-Packets.html#qSupported for a comprehensive list."""
