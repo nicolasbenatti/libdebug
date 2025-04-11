@@ -23,7 +23,7 @@ class GdbStubCallbacks:
         Args:
             resp (bytes): The raw stub reply.
         """
-        return resp[1 : -3]
+        return resp[1:-3]
 
     @staticmethod
     def qc_callback(resp: bytes):
