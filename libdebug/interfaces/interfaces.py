@@ -7,6 +7,15 @@
 from enum import Enum
 
 
-class AvailableInterfaces(Enum):
-    PTRACE = 0
-    GDB = 1
+class AvailableInterfaces(str, Enum):
+    PTRACE = "ptrace"
+    GDB = "gdbstub"
+
+    @staticmethod
+    def from_str(label):
+        if label in ('ptrace'):
+            return AvailableInterfaces.PTRACE
+        elif label in ('gdbstub', 'gdb', 'GDB'):
+            return AvailableInterfaces.GDB
+        else:
+            raise NotImplementedError
