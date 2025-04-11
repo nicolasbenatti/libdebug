@@ -39,8 +39,12 @@ class GDBStubCommand(bytes, Enum):
     GDBSTUB_ENABLE_SYSCALL_HOOKS = b"QCatchSyscalls:"
 
 class GDBStubFeature(bytes, Enum):
-    """Supported features. Features can be either query commands or indications on stub's capabilities (e.g. threading support).
-    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/General-Query-Packets.html#qSupported for a comprehensive list."""
+    """Supported features: they can be either query commands or indications on stub capabilities.
+    Not every feature can be probed, and only those that can are listed. The rest shall be probed by
+    actually sending the command and checking the response is not empty.
+    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/General-Query-Packets.html#qSupported
+    for the full list of features.
+    """
     GDBSTUB_TDESCR_READ_FEATURE = b"qXfer:features:read"
     GDBSTUB_EXECFILE_READ_FEATURE = b'qXfer:exec-file:read'
     GDBSTUB_VCONT_FEATURE = b"vContSupported"

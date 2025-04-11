@@ -73,13 +73,20 @@ def send_stub_packet(stub: socket, data: bytes, session_enabled_feats: list[GDBS
 
 def receive_stub_packet(stub: socket, cmd: str):
     """Handles the reception of a packet from GDB stub.
-    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Overview.html#Overview for info."""
+    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Overview.html#Overview for info.
+
+    Args:
+        stub (socket): Connection to the stub.
+        data (bytes): Data to send.
+
+    Returns:
+        Tuple (stub_reply, is_cmd_supported -> bool)
+    """
     # Receive ACK/NACK
     ack = stub.recv(1)
     if ack == b'-':
         # If NAK received, return empty buffer
-        # NOTE: this should never happen if we use
-        #       TCP sockets
+        # NOTE: this should never happen with TCP sockets
         return bytes()
 
     resp = stub.recv(GDBSTUB_MAX_PAYLOAD_LEN)
@@ -88,7 +95,7 @@ def receive_stub_packet(stub: socket, cmd: str):
     if resp[0] == ord(GDBSTUB_ORDINARY_PACKET_INITIAL_BYTE):
         send_ack(stub)
     
-    # Handle error/unsupported replies
+    # Handle errors and unsupported commands
     if resp == GDBSTUB_REPLY_UNSUPPORTED:
         liblog.debugger(f"GDBSTUB: unsupported command \'{cmd}\'")
         return bytes(), False
@@ -97,15 +104,14 @@ def receive_stub_packet(stub: socket, cmd: str):
         liblog.error(f"GDBSTUB: received error code \'{errcode}\' [{errno.errorcode[errcode]}]")
         return b"E: " + errno.errorcode[errcode], True
 
-    # Extract data (or just strip control Bytes if callback
-    # not available)
+    # Extract data (or just strip control Bytes if callback not available)
     callback = gdb_stub_callback_provider(cmd)
     data = callback(resp)
 
     return data, True
 
 def get_supported_features() -> bytes:
-    """Returns a string containing all the supported stub features
+    """Builds a string containing all the supported stub features
     that can be probed (i.e. that you should expect in the stub reply)"""
     res = b""
     for feat in GDBStubFeature:
@@ -158,7 +164,7 @@ def str2hex(s: str):
     ASCII hexadecimal representation.
     
     Args:
-        s: the string to convert.
+        s (str): the string to convert.
     """
     if len(s) == 0:
         raise ValueError("Cannot convert empty string to hex representation")
@@ -169,7 +175,7 @@ def bstr2hex(buf: bytes):
     """Converts a binary string into another one containing its hex-encoded bytes.
     
     Args:
-        buf: the binary string to convert.
+        buf (bytes): the binary string to convert.
     """
     if len(buf) == 0:
         raise ValueError("Cannot convert bytestring to hex representation")
