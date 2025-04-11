@@ -45,3 +45,23 @@ class GDBStubFeature(bytes, Enum):
     GDBSTUB_VCONT_FEATURE = b"vContSupported"
     GDBSTUB_MULTIPROC_FEATURE = b"multiprocess"
     GDBSTUB_CATCH_SYSCALLS = b"QCatchSyscalls"
+
+GDBSTUB_command_semantics: dict[GDBStubCommand, GDBStubFeature] = {
+    GDBStubCommand.GDBSTUB_TDESCR_READ: GDBStubFeature.GDBSTUB_TDESCR_READ_FEATURE,
+    GDBStubCommand.GDBSTUB_EXECFILE_READ: GDBStubFeature.GDBSTUB_EXECFILE_READ_FEATURE,
+    GDBStubCommand.GDBSTUB_EXECFILE_READ: GDBStubFeature.GDBSTUB_EXECFILE_READ_FEATURE,
+    GDBStubCommand.GDBSTUB_CONTINUE: GDBStubFeature.GDBSTUB_VCONT_FEATURE,
+    GDBStubCommand.GDBSTUB_STEP: GDBStubFeature.GDBSTUB_VCONT_FEATURE,
+    GDBStubCommand.GDBSTUB_KILL: GDBStubFeature.GDBSTUB_MULTIPROC_FEATURE,
+    GDBStubCommand.GDBSTUB_ENABLE_SYSCALL_HOOKS: GDBStubFeature.GDBSTUB_CATCH_SYSCALLS,
+}
+
+# For each gdbstub feature, this dictionary holds
+# The earliest QEMU version that supports it
+GDBSTUB_qemu_support_matrix: dict[GDBStubFeature, str] = {
+    GDBStubFeature.GDBSTUB_TDESCR_READ_FEATURE: "7.2",
+    GDBStubFeature.GDBSTUB_EXECFILE_READ_FEATURE: "8.1",
+    GDBStubFeature.GDBSTUB_VCONT_FEATURE: "7.2",
+    GDBStubFeature.GDBSTUB_MULTIPROC_FEATURE: "7.2",
+    GDBStubFeature.GDBSTUB_CATCH_SYSCALLS: "9.0",
+}
