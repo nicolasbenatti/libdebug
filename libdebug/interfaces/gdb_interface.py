@@ -91,7 +91,7 @@ class GdbStubInterface(DebuggingInterface):
     register_holder: GdbRegisterHolder = None
     """Tells the interface how to parse the register blob coming from the stub."""
 
-    qemu_pid: int | None
+    qemu_pid: int
     """The process ID of the QEMU instance."""
 
     remote_process_id: int | None
