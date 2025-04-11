@@ -79,11 +79,7 @@ class _InternalDebugger:
         self.context = provide_context(self)
 
         with context_extend_from(self):
-            dbg_backend = None
-            with open(os.path.dirname(__file__)+"/config/config.json") as f:
-                dbg_backend = json.loads(f.read())['debuggingBackend']
-            
-            self.interface = provide_debugging_interface(dbg_backend)
+            self.interface = provide_debugging_interface(libcontext.backend)
             self.context.debugging_interface = self.interface
 
         # threading utilities

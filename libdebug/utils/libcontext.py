@@ -5,6 +5,8 @@
 #
 
 import sys
+import os
+import json
 from contextlib import contextmanager
 from copy import deepcopy
 
@@ -59,6 +61,9 @@ class LibContext:
 
         self._arch = "amd64"
         self._terminal = []
+
+        with open(os.path.dirname(__file__)+"/../config/config.json") as f:
+            self.backend = json.loads(f.read())['debuggingBackend']
 
     def _set_debug_level_for_all(self):
         """Set the debug level for all the loggers to DEBUG"""
