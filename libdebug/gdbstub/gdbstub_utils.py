@@ -14,7 +14,10 @@ from libdebug.gdbstub.gdbstub_constants import (
     GDBSTUB_MAX_PAYLOAD_LEN,
     GDBSTUB_ORDINARY_PACKET_INITIAL_BYTE,
     GDBSTUB_REPLY_UNSUPPORTED,
-    GDBStubFeature
+    GDBSTUB_command_semantics,
+    GDBSTUB_qemu_support_matrix,
+    GDBStubFeature,
+    GDBStubCommand
 )
 
 
@@ -39,6 +42,8 @@ def prepare_stub_packet(data: bytes):
     return payload + bytes(f"{checksum:02x}", "ascii")
 
 def receive_stub_packet(cmd: str, stub: socket):
+
+def receive_stub_packet(stub: socket, cmd: str):
     """Handles the reception of a packet from GDB stub.
     See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Overview.html#Overview for info."""
     # Receive ACK/NACK
@@ -57,18 +62,19 @@ def receive_stub_packet(cmd: str, stub: socket):
     
     # Handle error/unsupported replies
     if resp == GDBSTUB_REPLY_UNSUPPORTED:
-        # TODO: silently discard or raise exception?
-        liblog.debugger("GDBSTUB: unsupported reply, ignoring...")
+        liblog.debugger(f"GDBSTUB: unsupported command \'{cmd}\'")
+        return bytes(), False
     elif resp[1] == ord(b'E'):
         errcode = int(resp[1:3], 10)
-        liblog.error(f"GDBSTUB: received error code \'{errcode}\' [{errno.errorcode[errcode]}]")    
+        liblog.error(f"GDBSTUB: received error code \'{errcode}\' [{errno.errorcode[errcode]}]")
+        return b"E: " + errno.errorcode[errcode], True
 
     # Extract data (or just strip control Bytes if callback
     # not available)
     callback = gdb_stub_callback_provider(cmd)
     data = callback(resp)
 
-    return data
+    return data, True
 
 def get_supported_features() -> bytes:
     """Returns a string containing all the supported stub features
