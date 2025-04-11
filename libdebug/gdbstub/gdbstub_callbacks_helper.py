@@ -5,13 +5,13 @@
 #
 
 from libdebug.gdbstub.gdbstub_callbacks import GdbStubCallbacks
-from libdebug.gdbstub.gdbstub_constants import GDBStubCommands
+from libdebug.gdbstub.gdbstub_constants import GDBStubCommand
 
 
 def gdb_stub_callback_provider(last_cmd: bytes):
     """Returns the right callback based on what's the last received packet."""
     # Extract command type
-    for supported_cmd in GDBStubCommands:
+    for supported_cmd in GDBStubCommand:
         if last_cmd.startswith(supported_cmd.value):
             prefix = supported_cmd.value
             break
@@ -19,17 +19,17 @@ def gdb_stub_callback_provider(last_cmd: bytes):
         prefix = b""
 
     match prefix:
-        case GDBStubCommands.GDBSTUB_GET_SUPPORTED_FEATS:
+        case GDBStubCommand.GDBSTUB_GET_SUPPORTED_FEATS:
             return GdbStubCallbacks.qsupported_callback
-        case GDBStubCommands.GDBSTUB_EXECFILE_READ:
+        case GDBStubCommand.GDBSTUB_EXECFILE_READ:
             return GdbStubCallbacks.qexec_file_read_callback
-        case GDBStubCommands.GBSTUB_VFILE_OPEN:
+        case GDBStubCommand.GBSTUB_VFILE_OPEN:
             return GdbStubCallbacks.vfile_open_callback
-        case GDBStubCommands.GDBSTUB_VFILE_PREAD:
+        case GDBStubCommand.GDBSTUB_VFILE_PREAD:
             return GdbStubCallbacks.vfile_pread_callback
-        case GDBStubCommands.GDBSTUB_GET_PID_TID:
+        case GDBStubCommand.GDBSTUB_GET_PID_TID:
             return GdbStubCallbacks.qc_callback
-        case GDBStubCommands.GDBSTUB_CONTINUE | GDBStubCommands.GDBSTUB_STEP:
+        case GDBStubCommand.GDBSTUB_CONTINUE | GDBStubCommand.GDBSTUB_STEP:
             return GdbStubCallbacks.vcont_callback
         case _:
             return GdbStubCallbacks.default_callback

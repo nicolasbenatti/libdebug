@@ -14,7 +14,7 @@ from libdebug.gdbstub.gdbstub_constants import (
     GDBSTUB_MAX_PAYLOAD_LEN,
     GDBSTUB_ORDINARY_PACKET_INITIAL_BYTE,
     GDBSTUB_REPLY_UNSUPPORTED,
-    GDBStubFeatures
+    GDBStubFeature
 )
 
 
@@ -74,7 +74,7 @@ def get_supported_features() -> bytes:
     """Returns a string containing all the supported stub features
     that can be probed (i.e. that you should expect in the stub reply)"""
     res = b""
-    for feat in GDBStubFeatures:
+    for feat in GDBStubFeature:
         res += feat.value + b"+;"
 
     return res

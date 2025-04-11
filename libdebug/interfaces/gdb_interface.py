@@ -28,7 +28,7 @@ from libdebug.gdbstub.gdbstub_status_handler import GdbStubStatusHandler
 from libdebug.data.register_holder import GdbRegisterHolder
 from libdebug.architectures.amd64.amd64_gdb_register_holder import Amd64GdbRegisterHolder
 from libdebug.gdbstub.gdbstub_constants import (
-    GDBStubCommands,
+    GDBStubCommand,
     GDBStubReplies,
     GDBSTUB_MAIN_TARGET_DESCRIPTION_FILENAME
 )
