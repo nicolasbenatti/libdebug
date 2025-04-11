@@ -15,7 +15,7 @@ GDBSTUB_REPLY_UNSUPPORTED = b'$#00'
 
 GDBSTUB_MAIN_TARGET_DESCRIPTION_FILENAME = "target.xml"
 
-class GDBStubCommands(bytes, Enum):
+class GDBStubCommand(bytes, Enum):
     """Supported commands."""
     GDBSTUB_GET_SUPPORTED_FEATS = b"qSupported:"
     GDBSTUB_GET_PID_TID = b"qC"
@@ -37,7 +37,7 @@ class GDBStubCommands(bytes, Enum):
     GBSTUB_VFILE_OPEN = b"vFile:open:"
     GDBSTUB_VFILE_PREAD = b"vFile:pread:"
 
-class GDBStubFeatures(bytes, Enum):
+class GDBStubFeature(bytes, Enum):
     """Supported features. Features can be either query commands or indications on stub's capabilities (e.g. threading support).
     See https://sourceware.org/gdb/current/onlinedocs/gdb.html/General-Query-Packets.html#qSupported for a comprehensive list."""
     GDBSTUB_TDESCR_READ_FEATURE = b"qXfer:features:read"
