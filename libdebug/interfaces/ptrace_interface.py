@@ -16,7 +16,7 @@ from libdebug.architectures.ptrace_hardware_breakpoint_manager import (
 from libdebug.architectures.ptrace_hardware_breakpoint_provider import (
     ptrace_hardware_breakpoint_manager_provider,
 )
-from libdebug.architectures.register_helper import register_holder_provider
+from libdebug.architectures.ptrace_register_helper import ptrace_register_holder_provider
 from libdebug.cffi import _ptrace_cffi
 from libdebug.data.breakpoint import Breakpoint
 from libdebug.data.memory_map import MemoryMap
@@ -328,7 +328,7 @@ class PtraceInterface(DebuggingInterface):
             self._global_state, new_thread_id
         )
 
-        register_holder = register_holder_provider(register_file)
+        register_holder = ptrace_register_holder_provider(register_file)
 
         with context_extend_from(self):
             thread = ThreadContext.new(new_thread_id, register_holder)

@@ -21,7 +21,7 @@ from libdebug.architectures.gdb_hardware_breakpoint_manager import (
 from libdebug.architectures.gdb_hardware_breakpoint_provider import (
     gdb_hardware_breakpoint_manager_provider
 )
-from libdebug.architectures.register_helper import register_holder_provider
+from libdebug.architectures.gdb_register_helper import gdb_register_holder_provider
 from libdebug.data.breakpoint import Breakpoint
 from libdebug.data.memory_map import MemoryMap
 from libdebug.gdbstub.gdbstub_status_handler import GdbStubStatusHandler
@@ -640,7 +640,7 @@ class GdbStubInterface(DebuggingInterface):
         register_file, register_blob = self._fetch_register_file(registers_info)
         
         # TODO: Integrate with `register_holder_provider` method
-        self.register_holder = Amd64GdbRegisterHolder(register_file, registers_info, register_blob)
+        self.register_holder = gdb_register_holder_provider(register_file, registers_info, register_blob)
         with context_extend_from(self):
             thread = ThreadContext.new(new_thread_id, self.register_holder)
 
