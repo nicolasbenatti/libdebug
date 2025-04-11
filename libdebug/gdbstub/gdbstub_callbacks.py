@@ -52,20 +52,27 @@ class GdbStubCallbacks:
         return pid_tid
     
     @staticmethod
-    def qsupported_callback(resp: bytes):
+    def qsupported_callback(resp: bytes) -> list[GDBStubFeature]:
         """Extracts information about stub's supported features.
         
         Args:
             resp (bytes): The raw stub reply.
+        
+        Returns:
+            A list of enabled features, so that they can be disabled
+            at runtime.
         """
         escaped = GdbStubCallbacks.default_callback(resp)
         remote_feats = escaped.split(b';')[1:] # Discard `PacketSize`
         
         supported_feats = [feat.value for feat in GDBStubFeature]
+        enabled_feats = []
         for feat in supported_feats:
-            if feat+b'+' not in remote_feats:
-                raise RuntimeError(f"Stub doesn't support the following feature: {str(feat)}")
-    
+            if feat+b'+' in remote_feats:
+                enabled_feats.append(feat)
+
+        return enabled_feats
+
     def qexec_file_read_callback(resp: bytes):
         """Extracts the full path of the remote running program.
         
