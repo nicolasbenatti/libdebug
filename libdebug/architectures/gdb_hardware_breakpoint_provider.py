@@ -7,8 +7,8 @@
 from libdebug.architectures.amd64.amd64_gdb_hw_bp_helper import (
     Amd64GdbHardwareBreakpointManager,
 )
-from libdebug.architectures.ptrace_hardware_breakpoint_manager import (
-    PtraceHardwareBreakpointManager,
+from libdebug.architectures.gdb_hardware_breakpoint_manager import (
+    GdbHardwareBreakpointManager,
 )
 from libdebug.state.thread_context import ThreadContext
 from libdebug.utils.libcontext import libcontext
@@ -16,7 +16,7 @@ from libdebug.utils.libcontext import libcontext
 
 def gdb_hardware_breakpoint_manager_provider(
     thread: ThreadContext,
-) -> PtraceHardwareBreakpointManager:
+) -> GdbHardwareBreakpointManager:
     """Returns an instance of the hardware breakpoint manager to be used by the `_InternalDebugger` class."""
     architecture = libcontext.arch
 

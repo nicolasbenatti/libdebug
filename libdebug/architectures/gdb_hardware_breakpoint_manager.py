@@ -6,7 +6,6 @@
 
 from libdebug.state.thread_context import ThreadContext
 from libdebug.architectures.hardware_breakpoint_manager import HardwareBreakpointManager
-from libdebug.state.debugging_context import DebuggingContext
 
 
 class GdbHardwareBreakpointManager(HardwareBreakpointManager):
