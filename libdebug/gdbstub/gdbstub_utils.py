@@ -41,7 +41,35 @@ def prepare_stub_packet(data: bytes):
     # NOTE: Checksum is 1 Byte, but must be expressed as a 2-digit hex literal
     return payload + bytes(f"{checksum:02x}", "ascii")
 
-def receive_stub_packet(cmd: str, stub: socket):
+def send_stub_packet(stub: socket, data: bytes, session_enabled_feats: list[GDBStubFeature]):
+    """Sends a packet to the GDB stub.
+    
+    Args:
+        stub (socket): Connection to the stub.
+        data (bytes): Data to send.
+        session_enabled_feats (list): List of features enabled in the current session.
+    
+    Raises:
+        RuntimeError: The packet is not supported in the current session."""
+    command = None
+    for cmd in GDBStubCommand:
+        if data.startswith(cmd):
+            command = cmd
+            break
+    else:
+        # NOTE: we should never reach this but, just to be sure...
+        raise ValueError(f"Command not supported by libdebug: \'{command}\'")
+
+    # Get the feature from which the current command depends
+    if command in GDBSTUB_command_semantics.keys():
+        command_feature = GDBSTUB_command_semantics[command]
+        if command_feature not in session_enabled_feats:
+            min_qemu_version = GDBSTUB_qemu_support_matrix[command_feature]
+            raise ValueError(f"Command not supported in the current session: \'{command}\'. QEMU >= {min_qemu_version} required.")
+    else:
+        liblog.debugger(f"Command \'{command}\' relies on a feature that cannot be probed")
+
+    stub.send(prepare_stub_packet(data))
 
 def receive_stub_packet(stub: socket, cmd: str):
     """Handles the reception of a packet from GDB stub.

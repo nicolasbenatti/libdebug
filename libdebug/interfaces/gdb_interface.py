@@ -47,7 +47,7 @@ from libdebug.state.thread_context import ThreadContext
 from libdebug.utils import posix_spawn
 from libdebug.gdbstub.gdbstub_utils import (
     send_ack,
-    prepare_stub_packet,
+    send_stub_packet,
     receive_stub_packet,
     get_supported_features,
     int2hexbstr,
@@ -162,7 +162,7 @@ class GdbStubInterface(DebuggingInterface):
         nbytes = 0
         while resp != b'l':
             cmd = b'qXfer:features:read:'+bytes(filename, 'ascii')+b':'+offset+b',ffb'
-            self.stub.send(prepare_stub_packet(cmd))
+            send_stub_packet(self.stub, cmd, self.enabled_features)
             resp, _ = receive_stub_packet(self.stub, cmd)
             # Strip initial 'm'/'l'
             data += resp[1:]
@@ -203,6 +203,7 @@ class GdbStubInterface(DebuggingInterface):
         
         # Read 2KiB chunks
         cmd = b'vFile:pread:'+int2hexbstr(int(fd))+b",800,"+offset   
+        send_stub_packet(self.stub, cmd, self.enabled_features)
         resp, is_supported = receive_stub_packet(self.stub, cmd)
         if is_supported:
             self.enabled_commands(cmd)
@@ -213,6 +214,7 @@ class GdbStubInterface(DebuggingInterface):
             offset = int2hexbstr(nbytes)
             
             cmd = b'vFile:pread:'+int2hexbstr(int(fd))+b",800,"+offset   
+            send_stub_packet(self.stub, cmd, self.enabled_features)
             resp, is_supported = receive_stub_packet(self.stub, cmd)
             if is_supported:
                 self.enabled_commands(cmd)
@@ -259,11 +261,13 @@ class GdbStubInterface(DebuggingInterface):
     def _download_executable(self, executable_path):
         liblog.debugger("Executable file is not on local machine, downloading...")
         cmd = b"vFile:setfs:0"
+        send_stub_packet(self.stub, cmd, self.enabled_features)
         _, is_supported = receive_stub_packet(self.stub, cmd)
         if is_supported:
             self.enabled_commands(cmd)
 
         cmd = b"vFile:open:"+bstr2hex(executable_path)+b",0,0"
+        send_stub_packet(self.stub, cmd, self.enabled_features)
         fd, is_supported = receive_stub_packet(self.stub, cmd)
         if is_supported:
             self.enabled_commands(cmd)
@@ -335,6 +339,7 @@ class GdbStubInterface(DebuggingInterface):
 
         # Enable supported features
         cmd = b'qSupported:'+get_supported_features()+b'swbreak+;hwbreak+'
+        send_stub_packet(self.stub, cmd, self.enabled_features)
         self.enabled_features, _ = receive_stub_packet(self.stub, cmd)
         liblog.debugger(f"Features enabled for this session: {self.enabled_features}")
 
@@ -343,7 +348,7 @@ class GdbStubInterface(DebuggingInterface):
         receive_stub_packet(cmd, self.stub)
         
         cmd = b'qC'
-        self.stub.send(prepare_stub_packet(cmd))
+        send_stub_packet(self.stub, cmd, self.enabled_features)
         resp, _ = receive_stub_packet(self.stub, cmd)
         self.remote_process_id = resp.pid
         self.context.process_id = resp.pid
@@ -360,7 +365,7 @@ class GdbStubInterface(DebuggingInterface):
         self.register_new_thread(thread_id, registers_info)
         
         cmd = b"qXfer:exec-file:read:"+ int2hexbstr(self.remote_process_id) +b":0,ffb"
-        self.stub.send(prepare_stub_packet(cmd))
+        send_stub_packet(self.stub, cmd, self.enabled_features)
         elf_fname, _ = receive_stub_packet(self.stub, cmd)
         self.executable_path = elf_fname.decode('ascii')
         
@@ -402,7 +407,7 @@ class GdbStubInterface(DebuggingInterface):
 
         # Enable supported features
         cmd = b'qSupported:'+get_supported_features()+b'swbreak+;hwbreak+'
-        self.stub.send(prepare_stub_packet(cmd))
+        send_stub_packet(self.stub, cmd, self.enabled_features)
         receive_stub_packet(self.stub, cmd)
 
         cmd = b"QCatchSyscalls:1"
@@ -410,7 +415,7 @@ class GdbStubInterface(DebuggingInterface):
         receive_stub_packet(cmd, self.stub)
 
         cmd = b'qC'
-        self.stub.send(prepare_stub_packet(cmd))
+        send_stub_packet(self.stub, cmd, self.enabled_features)
         resp, _ = receive_stub_packet(self.stub, cmd)
         self.remote_process_id = resp.pid
         self.context.process_id = resp.pid
@@ -427,7 +432,7 @@ class GdbStubInterface(DebuggingInterface):
         self.register_new_thread(thread_id, registers_info)
 
         cmd = b"qXfer:exec-file:read:"+int2hexbstr(self.remote_process_id)+b":0,ffb"
-        self.stub.send(prepare_stub_packet(cmd))
+        send_stub_packet(self.stub, cmd, self.enabled_features)
         remote_elf_path, _ = receive_stub_packet(self.stub, cmd)
 
         # if the remote is on another machine, try to download the executable
@@ -442,6 +447,7 @@ class GdbStubInterface(DebuggingInterface):
         assert self.remote_process_id is not None
 
         cmd = b'vKill;'+int2hexbstr(self.remote_process_id)
+        send_stub_packet(self.stub, cmd, self.enabled_features)
         resp, is_supported = receive_stub_packet(self.stub, cmd)
         if is_supported:
             self.enabled_commands.append(cmd)
@@ -486,7 +492,7 @@ class GdbStubInterface(DebuggingInterface):
             self._update_register_file(thread.registers)
 
         cmd = b"vCont;c:p"+int2hexbstr(self.remote_process_id)+b'.-1'
-        self.stub.send(prepare_stub_packet(cmd))
+        send_stub_packet(self.stub, cmd, self.enabled_features)
         self.last_reply, _ = receive_stub_packet(self.stub, cmd)
         if self._should_disconnect(self.last_reply):
             return
@@ -512,7 +518,7 @@ class GdbStubInterface(DebuggingInterface):
         self._update_register_file(thread.registers)
 
         cmd = b'vCont;s:p'+int2hexbstr(self.remote_process_id)+b'.'+int2hexbstr(thread.thread_id)
-        self.stub.send(prepare_stub_packet(cmd))
+        send_stub_packet(self.stub, cmd, self.enabled_features)
         self.last_reply, _ = receive_stub_packet(self.stub, cmd)
         if self._should_disconnect(self.last_reply):
             return
@@ -647,7 +653,7 @@ class GdbStubInterface(DebuggingInterface):
     def _fetch_register_file(self, registers_info: dict[str, RegisterInfo]):
         """Queries the stub and fetches value of registers."""
         cmd = b'g'
-        self.stub.send(prepare_stub_packet(cmd))
+        send_stub_packet(self.stub, cmd, self.enabled_features)
         register_blob, _ = receive_stub_packet(self.stub, cmd)
         # Slice the blob to get register values
         register_file = lambda: None
@@ -669,7 +675,7 @@ class GdbStubInterface(DebuggingInterface):
             reg_val = getattr(register_holder.register_file, reg.name)
             if reg_val != register_holder.get_most_recent_value(reg.name):
                 cmd = b'P'+int2hexbstr(reg.index)+b'='+int2hexbstr_le(reg_val, reg.size)
-                self.stub.send(prepare_stub_packet(cmd))
+                send_stub_packet(self.stub, cmd, self.enabled_features)
                 resp, _ = receive_stub_packet(self.stub, cmd)
                 if resp != b"OK":
                     raise RuntimeError("Cannot send updated registers to the target process.")
@@ -688,7 +694,7 @@ class GdbStubInterface(DebuggingInterface):
             breakpoint (Breakpoint): The breakpoint to set.
         """
         cmd = b'Z0,'+int2hexbstr(breakpoint.address)+b',0'
-        self.stub.send(prepare_stub_packet(cmd))
+        send_stub_packet(self.stub, cmd, self.enabled_features)
         resp, _ = receive_stub_packet(self.stub, cmd)
 
         if resp != b'OK':
@@ -701,7 +707,7 @@ class GdbStubInterface(DebuggingInterface):
             breakpoint (Breakpoint): The breakpoint to unset.
         """
         cmd = b'z0,'+int2hexbstr(breakpoint.address)+b',0'
-        self.stub.send(prepare_stub_packet(cmd))
+        send_stub_packet(self.stub, cmd, self.enabled_features)
         resp, _ = receive_stub_packet(self.stub, cmd)
 
         if resp != b'OK':
@@ -760,7 +766,7 @@ class GdbStubInterface(DebuggingInterface):
     def peek_memory(self, address: int) -> int:
         """Reads the memory at the specified address."""
         cmd = b'm'+int2hexbstr(address)+b',8w'
-        self.stub.send(prepare_stub_packet(cmd))
+        send_stub_packet(self.stub, cmd, self.enabled_features)
         resp, _ = receive_stub_packet(self.stub, cmd)
 
         if resp == b'E22' or resp == b'E14':
@@ -771,7 +777,7 @@ class GdbStubInterface(DebuggingInterface):
     def poke_memory(self, address: int, data: int):
         """Writes the memory at the specified address."""
         cmd = b'M'+int2hexbstr(address)+b',8w:'+int2hexbstr(data)
-        self.stub.send(prepare_stub_packet(cmd))
+        send_stub_packet(self.stub, cmd, self.enabled_features)
         resp, _ = receive_stub_packet(self.stub, cmd)
 
         if resp == b'E22' or resp == b'E14':
