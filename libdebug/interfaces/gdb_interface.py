@@ -207,7 +207,7 @@ class GdbStubInterface(DebuggingInterface):
         send_stub_packet(self.stub, cmd, self.enabled_features)
         resp, is_supported = receive_stub_packet(self.stub, cmd)
         if is_supported:
-            self.enabled_commands(cmd)
+            self.enabled_commands.append(cmd)
 
         while resp.nbytes != 0:
             data += resp.data
@@ -218,7 +218,7 @@ class GdbStubInterface(DebuggingInterface):
             send_stub_packet(self.stub, cmd, self.enabled_features)
             resp, is_supported = receive_stub_packet(self.stub, cmd)
             if is_supported:
-                self.enabled_commands(cmd)
+                self.enabled_commands.append(cmd)
         
         return data
     
@@ -270,13 +270,13 @@ class GdbStubInterface(DebuggingInterface):
         send_stub_packet(self.stub, cmd, self.enabled_features)
         _, is_supported = receive_stub_packet(self.stub, cmd)
         if is_supported:
-            self.enabled_commands(cmd)
+            self.enabled_commands.append(cmd)
 
         cmd = b"vFile:open:"+bstr2hex(executable_path)+b",0,0"
         send_stub_packet(self.stub, cmd, self.enabled_features)
         fd, is_supported = receive_stub_packet(self.stub, cmd)
         if is_supported:
-            self.enabled_commands(cmd)
+            self.enabled_commands.append(cmd)
 
         elf = self._fetch_elf_file(int(fd))
         remote_exec_path = os.getcwd()+"/../../remote_binaries/"+remote_exec_path.split("/")[-1]
@@ -415,7 +415,7 @@ class GdbStubInterface(DebuggingInterface):
         # Enable supported features
         cmd = b'qSupported:'+get_supported_features()+b'swbreak+;hwbreak+'
         send_stub_packet(self.stub, cmd, self.enabled_features)
-        receive_stub_packet(self.stub, cmd)
+        self.enabled_features, _ = receive_stub_packet(self.stub, cmd)
 
         if len(self.context.syscall_hooks) > 0:
             cmd = b"QCatchSyscalls:1"
