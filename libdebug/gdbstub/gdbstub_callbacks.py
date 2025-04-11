@@ -13,7 +13,8 @@ class GdbStubCallbacks:
     
     e.g. the command `qC` returns current thread id, in the format
     `QCp<pid>.<tid>`, the callback will return an object with
-    `pid` and `tid` properties."""
+    `pid` and `tid` properties.
+    """
 
     @staticmethod
     def default_callback(resp: bytes):

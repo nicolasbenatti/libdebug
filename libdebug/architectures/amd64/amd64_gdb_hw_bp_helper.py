@@ -22,7 +22,7 @@ AMD64_DBREGS_COUNT = 4
 
 class Amd64GdbHardwareBreakpointManager(GdbHardwareBreakpointManager):
     """A hardware breakpoint manager for the amd64 architecture,
-    specifically for the `GDB` debugging backend.
+    specifically for the `gdbstub` debugging backend.
 
     Attributes:
         thread (ThreadContext): The target thread.
