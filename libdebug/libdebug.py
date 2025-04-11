@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import json
 import psutil
 from queue import Queue
 from subprocess import Popen
@@ -78,7 +79,11 @@ class _InternalDebugger:
         self.context = provide_context(self)
 
         with context_extend_from(self):
-            self.interface = provide_debugging_interface()
+            dbg_backend = None
+            with open(os.path.dirname(__file__)+"/config/config.json") as f:
+                dbg_backend = json.loads(f.read())['debuggingBackend']
+            
+            self.interface = provide_debugging_interface(dbg_backend)
             self.context.debugging_interface = self.interface
 
         # threading utilities
