@@ -146,10 +146,6 @@ class _InternalDebugger:
         # We don't want any asynchronous behaviour here
         self._polling_thread_command_queue.join()
 
-        # NOTE: this may return `None` in case of backends that
-        # do not return any PipeManager upon attaching, like `ptrace`
-        return self.context.pipe_manager
-
     def _start_processing_thread(self):
         """Starts the thread that will poll the traced process for state change."""
         # Set as daemon so that the Python interpreter can exit even if the thread is still running
