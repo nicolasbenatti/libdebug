@@ -46,6 +46,7 @@ def prepare_stub_packet(data: bytes):
 
 def send_stub_packet(stub: socket, data: bytes, session_enabled_feats: list[GDBStubFeature]):
     """Sends a packet to the GDB stub.
+    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Overview.html#Overview for protocol info.
     
     Args:
         stub (socket): Connection to the stub.
@@ -53,7 +54,8 @@ def send_stub_packet(stub: socket, data: bytes, session_enabled_feats: list[GDBS
         session_enabled_feats (list): List of features enabled in the current session.
     
     Raises:
-        RuntimeError: The packet is not supported in the current session."""
+        RuntimeError: The packet is not supported in the current session.
+    """
     command = None
     for cmd in GDBStubCommand:
         if data.startswith(cmd):
@@ -75,8 +77,8 @@ def send_stub_packet(stub: socket, data: bytes, session_enabled_feats: list[GDBS
     stub.send(prepare_stub_packet(data))
 
 def receive_stub_packet(stub: socket, cmd: str):
-    """Handles the reception of a packet from GDB stub.
-    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Overview.html#Overview for info.
+    """Receives a packet from the GDB stub.
+    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Overview.html#Overview for protocol info.
 
     Args:
         stub (socket): Connection to the stub.
@@ -115,7 +117,8 @@ def receive_stub_packet(stub: socket, cmd: str):
 
 def get_supported_features() -> bytes:
     """Builds a string containing all the supported stub features
-    that can be probed (i.e. that you should expect in the stub reply)"""
+    that can be probed (i.e. that you should expect in the stub reply).
+    """
     res = b""
     for feat in GDBStubFeature:
         res += feat.value + b"+;"

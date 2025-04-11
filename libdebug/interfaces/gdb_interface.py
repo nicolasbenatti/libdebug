@@ -124,7 +124,8 @@ class GdbStubInterface(DebuggingInterface):
     enabled_commands: list[GDBStubCommand] = []
     """Stub commands enabled for the current session.
     NOTE: Not every gdbstub feature can be probed, so libdebug discovers whether some commands
-    are supported or not when sending them for the first time."""
+    are supported or not when sending them for the first time.
+    """
 
     def __init__(self):
         super().__init__()
@@ -258,7 +259,12 @@ class GdbStubInterface(DebuggingInterface):
         else:
             raise RuntimeError("Cannot find pid of QEMU instance")
 
-    def _download_executable(self, executable_path):
+    def _download_executable(self, executable_path: str):
+        """Downloads the currently running binary from the stub.
+        
+        Args:
+            executable_path (str): Binary path on the remote machine.
+        """
         liblog.debugger("Executable file is not on local machine, downloading...")
         cmd = b"vFile:setfs:0"
         send_stub_packet(self.stub, cmd, self.enabled_features)
@@ -347,7 +353,7 @@ class GdbStubInterface(DebuggingInterface):
             cmd = b"QCatchSyscalls:1"
             send_stub_packet(self.stub, cmd, self.enabled_features)
             receive_stub_packet(self.stub, cmd)
-        
+
         cmd = b'qC'
         send_stub_packet(self.stub, cmd, self.enabled_features)
         resp, _ = receive_stub_packet(self.stub, cmd)
@@ -588,9 +594,7 @@ class GdbStubInterface(DebuggingInterface):
         return PipeManager(self.stdin_write, self.stdout_read, self.stderr_read)
 
     def _setup_parent(self, continue_to_entry_point: bool):
-        """
-        Sets up the parent process after the child process has been created or attached to.
-        """
+        """Sets up the parent process after the child process has been created or attached to."""
         if not self.is_attached_process:
             liblog.debugger("Child process ready")
 

@@ -14,7 +14,6 @@ class GdbHardwareBreakpointManager(HardwareBreakpointManager):
 
     Attributes:
         thread (ThreadContext): The target thread.
-        context (DebuggingContext): The global debugging context, used to communicate with GDB stub.
         breakpoint_count (int): The number of hardware breakpoints set.
     """
 
