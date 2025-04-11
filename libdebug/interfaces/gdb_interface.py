@@ -343,9 +343,10 @@ class GdbStubInterface(DebuggingInterface):
         self.enabled_features, _ = receive_stub_packet(self.stub, cmd)
         liblog.debugger(f"Features enabled for this session: {self.enabled_features}")
 
-        cmd = b"QCatchSyscalls:1"
-        self.stub.send(prepare_stub_packet(cmd))
-        receive_stub_packet(cmd, self.stub)
+        if len(self.context.syscall_hooks) > 0:
+            cmd = b"QCatchSyscalls:1"
+            send_stub_packet(self.stub, cmd, self.enabled_features)
+            receive_stub_packet(self.stub, cmd)
         
         cmd = b'qC'
         send_stub_packet(self.stub, cmd, self.enabled_features)
@@ -410,9 +411,10 @@ class GdbStubInterface(DebuggingInterface):
         send_stub_packet(self.stub, cmd, self.enabled_features)
         receive_stub_packet(self.stub, cmd)
 
-        cmd = b"QCatchSyscalls:1"
-        self.stub.send(prepare_stub_packet(cmd))
-        receive_stub_packet(cmd, self.stub)
+        if len(self.context.syscall_hooks) > 0:
+            cmd = b"QCatchSyscalls:1"
+            send_stub_packet(self.stub, cmd, self.enabled_features)
+            receive_stub_packet(self.stub, cmd)
 
         cmd = b'qC'
         send_stub_packet(self.stub, cmd, self.enabled_features)
