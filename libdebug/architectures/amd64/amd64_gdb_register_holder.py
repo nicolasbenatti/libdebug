@@ -92,7 +92,7 @@ class Amd64RegisterInfoParser(RegisterInfoParser):
 
 @dataclass
 class Amd64GdbRegisterHolder(GdbRegisterHolder):
-    """A class that provides views and setters for the registers of an x86_64 process, specifically for the `GDB` debugging backend."""
+    """A class that provides views and setters for the registers of an x86_64 process, specifically for the `gdbstub` debugging backend."""
 
     def apply_on(self, target, target_class):
         target.regs = self.register_file

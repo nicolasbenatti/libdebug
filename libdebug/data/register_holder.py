@@ -60,12 +60,12 @@ class PtraceRegisterHolder(RegisterHolder):
 
 @dataclass
 class GdbRegisterHolder(RegisterHolder):
-    """An abstract class that holds the state of the registers of a process, specifically for the `GDB` debugging backend.
+    """An abstract class that holds the state of the registers of a process, specifically for the `gdbstub` debugging backend.
 
     This class should not be instantiated directly, but rather through the `register_holder_provider` function.
 
     Attributes:
-        register_file (object): The content of the register file of the process, as returned by the `GDB` stub.
+        register_file (object): The content of the register file of the process, as returned by the GDB stub.
         register_info (dict[str, RegisterInfo]): A dictionary containing information about registers. Key is the register name.
         register_blob (bytearray): The last received raw register data, to be able to update registers without issues.
     """
@@ -84,7 +84,8 @@ class GdbRegisterHolder(RegisterHolder):
         """Returns the last value for a given register, read from the last-received blob.
         
         Args:
-            reg_name (str): The name of the register to fetch."""
+            reg_name (str): The name of the register to fetch.
+        """
         info = self.register_info[reg_name]
         idx = info.offset*2
         return hexbstr2int_le(self.register_blob[idx : idx+2*info.size])

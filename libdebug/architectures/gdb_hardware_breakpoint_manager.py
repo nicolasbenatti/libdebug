@@ -11,7 +11,7 @@ from libdebug.state.debugging_context import DebuggingContext
 
 class GdbHardwareBreakpointManager(HardwareBreakpointManager):
     """An architecture-independent interface for managing hardware breakpoints,
-    specific to the `gdb` debugging backend.
+    specific to the `gdbstub` debugging backend.
 
     Attributes:
         thread (ThreadContext): The target thread.

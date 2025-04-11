@@ -22,14 +22,17 @@ from libdebug.gdbstub.gdbstub_constants import (
 
 
 def send_ack(sck: socket):
+    """Sends an acknowledgement to the stub."""
     sck.send(b'+')
 
 def send_nack(sck: socket):
+    """Sends a non-acknowledgement to the stub."""
     sck.send(b'-')
 
 def prepare_stub_packet(data: bytes):
-    """Prepares a valid GDB stub packet starting from payload.
-    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Overview.html#Overview for info."""
+    """Prepares a valid GDB stub packet starting from some payload.
+    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Overview.html#Overview for protocol info.
+    """
     payload = b'$' + data + b'#'
     payloadv = [bytes([b]) for b in data]
     checksum = 0
