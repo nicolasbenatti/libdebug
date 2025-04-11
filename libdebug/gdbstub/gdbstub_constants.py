@@ -44,7 +44,7 @@ class GDBStubFeature(bytes, Enum):
     GDBSTUB_TDESCR_READ_FEATURE = b"qXfer:features:read"
     GDBSTUB_EXECFILE_READ_FEATURE = b'qXfer:exec-file:read'
     GDBSTUB_VCONT_FEATURE = b"vContSupported"
-    GDBSTUB_MULTIPROC_FEATURE = b"multiprocess"
+    GDBSTUB_MULTIPROC_FEATURE = b"multiprocess" # Shouldn't be probe-able but QEMU still sends it
     GDBSTUB_CATCH_SYSCALLS = b"QCatchSyscalls"
 
 GDBSTUB_command_semantics: dict[GDBStubCommand, GDBStubFeature] = {
