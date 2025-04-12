@@ -465,16 +465,6 @@ class GdbStubInterface(DebuggingInterface):
         with context_extend_from(self):
             self.status_handler = GdbStubStatusHandler()
         
-        # Creating pipes for stdin, stdout, stderr
-        self.stdin_read, self.stdin_write = os.pipe()
-        self.stdout_read, self.stdout_write = pty.openpty()
-        self.stderr_read, self.stderr_write = pty.openpty()
-        
-        # Setting stdout, stderr to raw mode to avoid terminal control codes interfering with the
-        # output
-        tty.setraw(self.stdout_read)
-        tty.setraw(self.stderr_read)
-        
         self.stub = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.stub.connect(("localhost", self.GDB_STUB_PORT))
@@ -484,7 +474,7 @@ class GdbStubInterface(DebuggingInterface):
         print(f"Connected to GDB stub at {stub_info[0]}:{stub_info[1]}")
         
         self.qemu_pid = self._get_qemu_instance_pid(port)
-        self.context.pipe_manager = self._setup_pipe()
+        self.context.pipe_manager = None
         print(f"PID of qemu instance is {self._get_qemu_instance_pid(port)}")
 
         # Enable supported features
