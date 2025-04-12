@@ -6,7 +6,6 @@
 
 import errno
 import os
-import signal
 import psutil
 import pty
 from time import sleep
@@ -26,7 +25,6 @@ from libdebug.data.breakpoint import Breakpoint
 from libdebug.data.memory_map import MemoryMap
 from libdebug.gdbstub.gdbstub_status_handler import GdbStubStatusHandler
 from libdebug.data.register_holder import GdbRegisterHolder
-from libdebug.architectures.amd64.amd64_gdb_register_holder import Amd64GdbRegisterHolder
 from libdebug.gdbstub.gdbstub_constants import (
     GDBStubCommand,
     GDBStubFeature,
