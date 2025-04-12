@@ -5,6 +5,9 @@
 #
 
 from libdebug.gdbstub.gdbstub_constants import GDBStubFeature
+from libdebug.gdbstub.gdbstub_utils import (
+    xtomem
+)
 
 class GdbStubCallbacks:
     """A class that provides callbacks for the most common commands of GDB stub.
@@ -140,5 +143,6 @@ class GdbStubCallbacks:
 
         bundle = lambda: None
         bundle.nbytes = int(escaped[1:escaped.index(b';')], 16)
-        bundle.data = escaped[escaped.index(b';')+1:]
+        bundle.data = xtomem(escaped[escaped.index(b';')+1:])
+        
         return bundle
