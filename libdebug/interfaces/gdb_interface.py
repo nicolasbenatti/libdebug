@@ -118,10 +118,10 @@ class GdbStubInterface(DebuggingInterface):
     enabled_features: list[GDBStubFeature] = []
     """Stub features enabled for the current session."""
 
-    enabled_commands: list[GDBStubCommand] = []
-    """Stub commands enabled for the current session.
+    disabled_commands: list[GDBStubCommand] = []
+    """Stub commands disabled for the current session.
     NOTE: Not every gdbstub feature can be probed, so libdebug discovers whether some commands
-    are supported or not when sending them for the first time.
+    are supported or not only by sending them.
     """
 
     def __init__(self):
@@ -203,8 +203,8 @@ class GdbStubInterface(DebuggingInterface):
         cmd = b'vFile:pread:'+int2hexbstr(int(fd))+b",800,"+offset   
         self.send_stub_packet(self.stub, cmd)
         resp, is_supported = self.receive_stub_packet(self.stub, cmd)
-        if is_supported:
-            self.enabled_commands.append(cmd)
+        if not is_supported:
+            self.disabled_commands.append(cmd)
 
         while resp.nbytes != 0:
             data += resp.data
@@ -214,8 +214,8 @@ class GdbStubInterface(DebuggingInterface):
             cmd = b'vFile:pread:'+int2hexbstr(int(fd))+b",800,"+offset
             self.send_stub_packet(self.stub, cmd)
             resp, is_supported = self.receive_stub_packet(self.stub, cmd)
-            if is_supported:
-                self.enabled_commands.append(cmd)
+            if not is_supported:
+                self.disabled_commands.append(cmd)
         
         return data
     
@@ -269,14 +269,14 @@ class GdbStubInterface(DebuggingInterface):
         cmd = b"vFile:setfs:0"
         self.send_stub_packet(self.stub, cmd)
         _, is_supported = self.receive_stub_packet(self.stub, cmd)
-        if is_supported:
-            self.enabled_commands.append(cmd)
+        if not is_supported:
+            self.disabled_commands.append(cmd)
 
         cmd = b"vFile:open:"+bstr2hex(remote_path)+b",0,0"
         self.send_stub_packet(self.stub, cmd)
         fd, is_supported = self.receive_stub_packet(self.stub, cmd)
-        if is_supported:
-            self.enabled_commands.append(cmd)
+        if not is_supported:
+            self.disabled_commands.append(cmd)
 
         elf = self._fetch_elf_file(int(fd))
         local_path = os.path.dirname(__file__)+"/../../../remote_binaries/"+str(remote_path).split("/")[-1]
@@ -522,8 +522,8 @@ class GdbStubInterface(DebuggingInterface):
         cmd = b'vKill;'+int2hexbstr(self.remote_process_id)
         self.send_stub_packet(self.stub, cmd)
         resp, is_supported = self.receive_stub_packet(self.stub, cmd)
-        if is_supported:
-            self.enabled_commands.append(cmd)
+        if not is_supported:
+            self.disabled_commands.append(cmd)
         if resp == b"OK":
             self.stub.close()
             if self.is_attached_process == False:
