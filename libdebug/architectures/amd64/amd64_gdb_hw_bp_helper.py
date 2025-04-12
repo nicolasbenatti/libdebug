@@ -25,7 +25,8 @@ class Amd64GdbHardwareBreakpointManager(GdbHardwareBreakpointManager):
     Attributes:
         thread (ThreadContext): The target thread.
         breakpoint_count (int): The number of hardware breakpoints set.
-        context (DebuggingContext): The global debugging context, used to communicate with GDB stub.
+        context (DebuggingContext): The global debugging context, used to access the methods
+                                    available in the debugging interface (like sw breakpoints do).
         breakpoint_registers (dict[str, Breakpoint]): A dictionary holding the current
                                                       breakpoint (if any) associated with the register.
     """
