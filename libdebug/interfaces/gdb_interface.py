@@ -714,7 +714,6 @@ class GdbStubInterface(DebuggingInterface):
         """Registers a new thread."""
         register_file, register_blob = self._fetch_register_file(registers_info)
         
-        # TODO: Integrate with `register_holder_provider` method
         self.register_holder = gdb_register_holder_provider(register_file, registers_info, register_blob)
         with context_extend_from(self):
             thread = ThreadContext.new(new_thread_id, self.register_holder)
