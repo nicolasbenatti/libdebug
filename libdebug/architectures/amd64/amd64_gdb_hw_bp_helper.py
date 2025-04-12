@@ -47,7 +47,7 @@ class Amd64GdbHardwareBreakpointManager(GdbHardwareBreakpointManager):
         len = int2hexbstr(bp.length if bp.length > 1 else 0)
 
         cmd = b'Z1,'+int2hexbstr(bp.address)+b','+len
-        self.interface.send_stub_packet(self.interface.stub, cmd, self.interface.enabled_features)
+        self.interface.send_stub_packet(self.interface.stub, cmd)
         resp, _ = self.interface.receive_stub_packet(self.interface.stub, cmd)
 
         if resp == b'OK':
@@ -65,7 +65,7 @@ class Amd64GdbHardwareBreakpointManager(GdbHardwareBreakpointManager):
         len = int2hexbstr(bp.length if bp.length > 1 else 0)
 
         cmd = b'z1,'+int2hexbstr(bp.address)+b','+len
-        self.interface.send_stub_packet(self.interface.stub, cmd, self.interface.enabled_features)
+        self.interface.send_stub_packet(self.interface.stub, cmd)
         resp = self.interface.receive_stub_packet(cmd, self.context.debugging_interface.stub)
 
         if resp == b'OK':
