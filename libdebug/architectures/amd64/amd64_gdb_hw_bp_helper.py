@@ -11,8 +11,6 @@ from libdebug.data.breakpoint import Breakpoint
 from libdebug.liblog import liblog
 from libdebug.state.thread_context import ThreadContext
 from libdebug.gdbstub.gdbstub_utils import (
-    prepare_stub_packet,
-    receive_stub_packet,
     int2hexbstr
 )
 from libdebug.state.debugging_context import provide_context
@@ -38,6 +36,7 @@ class Amd64GdbHardwareBreakpointManager(GdbHardwareBreakpointManager):
     ):
         super().__init__(thread)
         self.context = provide_context(self)
+        self.interface = self.context.debugging_interface
 
     def install_breakpoint(self, bp: Breakpoint):
         """Installs a hardware breakpoint at the provided location."""
@@ -47,8 +46,8 @@ class Amd64GdbHardwareBreakpointManager(GdbHardwareBreakpointManager):
         len = int2hexbstr(bp.length if bp.length > 1 else 0)
 
         cmd = b'Z1,'+int2hexbstr(bp.address)+b','+len
-        self.context.debugging_interface.stub.send(prepare_stub_packet(cmd))
-        resp = receive_stub_packet(cmd, self.context.debugging_interface.stub)
+        self.interface.send_stub_packet(self.interface.stub, cmd, self.interface.enabled_features)
+        resp, _ = self.interface.receive_stub_packet(self.interface.stub, cmd)
 
         if resp == b'OK':
             liblog.debugger(f"Hardware breakpoint installed at address %#x" % bp.address) 
@@ -65,8 +64,8 @@ class Amd64GdbHardwareBreakpointManager(GdbHardwareBreakpointManager):
         len = int2hexbstr(bp.length if bp.length > 1 else 0)
 
         cmd = b'z1,'+int2hexbstr(bp.address)+b','+len
-        self.context.debugging_interface.stub.send(prepare_stub_packet(cmd))
-        resp = receive_stub_packet(cmd, self.context.debugging_interface.stub)
+        self.interface.send_stub_packet(self.interface.stub, cmd, self.interface.enabled_features)
+        resp = self.interface.receive_stub_packet(cmd, self.context.debugging_interface.stub)
 
         if resp == b'OK':
             liblog.debugger(f"Removed hardware breakpoint at address %#x" % bp.address) 
