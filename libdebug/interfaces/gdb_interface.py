@@ -170,10 +170,11 @@ class GdbStubInterface(DebuggingInterface):
 
         return data.decode('ascii')
 
-    def _parse_main_target_description(self, data: str): 
-        """Parses the main target description file.
+    def _get_main_target_description_fname(self, data: str): 
+        """Extracts filename of the main target description from the initial target description
+        sent by the stub.
         
-        Returns: the filename of the architecture-dependent description file.
+        Returns: the filename of the architecture-specific description file.
         """
         arch_tdesc_filename = ""
         is_first_tag = False
@@ -192,8 +193,8 @@ class GdbStubInterface(DebuggingInterface):
 
         return arch_tdesc_filename
 
-    def _fetch_elf_file(self, fd: str): 
-        """Reads the content of the remote process' executable file."""
+    def _fetch_file(self, fd: str): 
+        """Reads the content of a file on the target machine."""
         offset = b'0'
         data = b''
         resp = b''
@@ -278,7 +279,7 @@ class GdbStubInterface(DebuggingInterface):
         if not is_supported:
             self.disabled_commands.append(cmd)
 
-        elf = self._fetch_elf_file(int(fd))
+        elf = self._fetch_file(int(fd))
         local_path = os.path.dirname(__file__)+"/../../../remote_binaries/"+str(remote_path).split("/")[-1]
         with open(local_path, "wb") as f:
             f.write(elf)
@@ -441,7 +442,7 @@ class GdbStubInterface(DebuggingInterface):
 
         # Fetch target description of the remote process
         main_tdesc = self._fetch_target_description(GDBSTUB_MAIN_TARGET_DESCRIPTION_FILENAME)
-        tdesc_filename = self._parse_main_target_description(main_tdesc)
+        tdesc_filename = self._get_main_target_description_fname(main_tdesc)
         tdesc = self._fetch_target_description(tdesc_filename)
 
         register_parser = register_parser_provider()
@@ -499,7 +500,7 @@ class GdbStubInterface(DebuggingInterface):
 
         # Fetch target description of the remote process
         main_tdesc = self._fetch_target_description(GDBSTUB_MAIN_TARGET_DESCRIPTION_FILENAME)
-        tdesc_filename = self._parse_main_target_description(main_tdesc)
+        tdesc_filename = self._get_main_target_description_fname(main_tdesc)
         tdesc = self._fetch_target_description(tdesc_filename)
 
         register_parser = register_parser_provider()
