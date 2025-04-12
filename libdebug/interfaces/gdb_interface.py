@@ -211,7 +211,7 @@ class GdbStubInterface(DebuggingInterface):
         while resp.nbytes != 0:
             data += resp.data
             nbytes += resp.nbytes
-            offset = int2hexbstr(nbytes)
+            offset = int2hexbstr(nbytes+1)
             
             cmd = b'vFile:pread:'+int2hexbstr(int(fd))+b",800,"+offset
             self.send_stub_packet(self.stub, cmd, self.enabled_features)
