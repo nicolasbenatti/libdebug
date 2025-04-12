@@ -36,6 +36,7 @@ class GDBStubCommand(bytes, Enum):
     GDBSTUB_VFILE_SETFS = b"vFile:setfs:"
     GBSTUB_VFILE_OPEN = b"vFile:open:"
     GDBSTUB_VFILE_PREAD = b"vFile:pread:"
+    GDBSTUB_VFILE_CLOSE = b"vFile:close:"
     GDBSTUB_ENABLE_SYSCALL_HOOKS = b"QCatchSyscalls:"
 
 class GDBStubFeature(bytes, Enum):

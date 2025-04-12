@@ -286,6 +286,11 @@ class GdbStubInterface(DebuggingInterface):
             f.write(elf)
             f.close()
         liblog.debugger("DONE")
+
+        cmd = b"vFile:close:"+fd
+        self.send_stub_packet(self.stub, cmd, self.enabled_features)
+        self.receive_stub_packet(self.stub, cmd)
+
         return local_path
     
     def send_stub_packet(self, stub: socket, data: bytes, session_enabled_feats: list[GDBStubFeature]):

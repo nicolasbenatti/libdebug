@@ -146,3 +146,15 @@ class GdbStubCallbacks:
         bundle.data = xtomem(escaped[escaped.index(b';')+1:])
         
         return bundle
+    
+    def vfile_close_callback(resp: bytes):
+        """Closed the requested file.
+        
+        Args:
+            resp (bytes): The raw stub reply.
+        """
+        escaped = GdbStubCallbacks.default_callback(resp)
+        if escaped == b'-1':
+            raise RuntimeError(f"Cannot close file on remote machine")
+        
+        return escaped
