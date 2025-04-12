@@ -125,6 +125,36 @@ def get_supported_features() -> bytes:
 
     return res
 
+def memtox(data: bytes):
+    """Encodes binary data escaping not allowed characters.
+    See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Overview.html#Binary-Data for more info.
+    """
+    encoded = bytearray()
+    
+    for b in data:
+        if b in [ord(b'#'), ord(b'$'), ord(b'*'), ord(b'}')]:
+            encoded.append(b'}')
+            encoded.append(b ^ 0x20)
+        else:
+            encoded.append(b)
+    
+    return encoded
+
+def xtomem(data: bytes):
+    """Decodes binary data that has been escaped by the stub."""
+    decoded = bytearray()
+    
+    i = 0
+    while i < len(data):
+        if data[i] == ord(b'}'):
+            decoded.append(data[i+1] ^ 0x20)
+            i += 1
+        else:
+            decoded.append(data[i])
+        i += 1
+
+    return decoded
+
 def int2hexbstr(n: int, nbytes: int = 0) -> bytes:
     """Converts an integer into a Byte-converted hexstring.
 
