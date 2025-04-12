@@ -320,6 +320,9 @@ class GdbStubInterface(DebuggingInterface):
                 raise ValueError(f"Command not supported in the current session: \'{command}\'. QEMU >= {min_qemu_version} required.")
         else:
             liblog.debugger(f"Command \'{command}\' relies on a feature that cannot be probed")
+            # Check whether the command has been discovered to be unsupported upon first send
+            if command in self.disabled_commands:
+                liblog.warning(f"Command not supported in the current session \'{command}\'")
 
         stub.send(prepare_stub_packet(data))
 
