@@ -258,11 +258,14 @@ class GdbStubInterface(DebuggingInterface):
         else:
             raise RuntimeError("Cannot find pid of QEMU instance")
 
-    def _download_executable(self, executable_path: str):
+    def _download_binary(self, remote_path: str) -> str:
         """Downloads the currently running binary from the stub.
         
         Args:
-            executable_path (str): Binary path on the remote machine.
+            remote_path (str): Path of binary on the remote machine.
+        
+        Returns:
+            Path of the newly downloaded binary on local filesystem.
         """
         liblog.debugger("Executable file is not on local machine, downloading...")
         cmd = b"vFile:setfs:0"
@@ -271,19 +274,20 @@ class GdbStubInterface(DebuggingInterface):
         if is_supported:
             self.enabled_commands.append(cmd)
 
-        cmd = b"vFile:open:"+bstr2hex(executable_path)+b",0,0"
+        cmd = b"vFile:open:"+bstr2hex(remote_path)+b",0,0"
         self.send_stub_packet(self.stub, cmd, self.enabled_features)
         fd, is_supported = self.receive_stub_packet(self.stub, cmd)
         if is_supported:
             self.enabled_commands.append(cmd)
 
         elf = self._fetch_elf_file(int(fd))
-        remote_exec_path = os.getcwd()+"/../../remote_binaries/"+remote_exec_path.split("/")[-1]
-        with open(remote_exec_path, "wb") as f:
+        local_path = os.path.dirname(__file__)+"/../../../remote_binaries/"+str(remote_path).split("/")[-1]
+        with open(local_path, "wb") as f:
             f.write(elf)
             f.close()
         liblog.debugger("DONE")
-
+        return local_path
+    
     def send_stub_packet(self, stub: socket, data: bytes, session_enabled_feats: list[GDBStubFeature]):
         """Sends a packet to the GDB stub.
         See https://sourceware.org/gdb/current/onlinedocs/gdb.html/Overview.html#Overview for protocol info.
@@ -513,10 +517,10 @@ class GdbStubInterface(DebuggingInterface):
 
         # if the remote is on another machine, try to download the executable
         if not os.path.exists(remote_elf_path):
-            local_elf_path = remote_elf_path = self._download_executable(remote_elf_path)
+            local_elf_path = remote_elf_path = self._download_binary(remote_elf_path)
         else:
             local_elf_path = remote_elf_path
-        self.executable_path = local_elf_path.decode('ascii')
+        self.executable_path = local_elf_path
 
     def kill(self):
         """Instantly terminates the process."""
