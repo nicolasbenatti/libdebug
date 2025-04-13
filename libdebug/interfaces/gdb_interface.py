@@ -237,7 +237,6 @@ class GdbStubInterface(DebuggingInterface):
         """
         if resp.msgtype == ord(b'W'):
             liblog.debugger(f"GDBSTUB: remote process exited with status {int(resp.status)}")
-            self.reset()
             return True
         elif resp.msgtype == ord(b'X'):
             liblog.debugger(f"GDBSTUB: remote process terminated with signal {int(resp.signal)}")
