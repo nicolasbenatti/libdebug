@@ -516,7 +516,7 @@ class GdbStubInterface(DebuggingInterface):
             local_elf_path = remote_elf_path = self._download_binary(remote_elf_path)
         else:
             local_elf_path = remote_elf_path
-        self.executable_path = local_elf_path
+        self.executable_path = local_elf_path.decode('ascii')
 
     def kill(self):
         """Instantly terminates the process."""
