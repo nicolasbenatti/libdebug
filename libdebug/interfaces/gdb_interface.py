@@ -57,7 +57,6 @@ from libdebug.gdbstub.gdbstub_utils import (
     hexbstr2int_le,
     bstr2hex
 )
-from libdebug.utils.debugging_utils import normalize_and_validate_address
 from libdebug.utils.elf_utils import get_entry_point
 from libdebug.utils.pipe_manager import PipeManager
 from libdebug.gdbstub.gdbstub_callbacks_helper import gdb_stub_callback_provider
@@ -468,7 +467,7 @@ class GdbStubInterface(DebuggingInterface):
         # Setup gdbstub wait status handler after debugging_context has been properly initialized
         with context_extend_from(self):
             self.status_handler = GdbStubStatusHandler()
-        
+
         self.stub = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.stub.connect(("localhost", self.GDB_STUB_PORT))
