@@ -474,6 +474,8 @@ class GdbStubInterface(DebuggingInterface):
             port (int): The port at which the stub is listening.
         """
         self.is_attached_process = True
+        self.gdbstub_port = port
+
         # Setup gdbstub wait status handler after debugging_context has been properly initialized
         with context_extend_from(self):
             self.status_handler = GdbStubStatusHandler()
