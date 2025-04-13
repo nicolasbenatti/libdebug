@@ -437,7 +437,7 @@ class GdbStubInterface(DebuggingInterface):
         self.enabled_features, _ = self.receive_stub_packet(self.stub, cmd)
         liblog.debugger(f"Features enabled for this session: {self.enabled_features}")
 
-        if len(self.context.syscall_hooks) > 0:
+        if GDBStubFeature.GDBSTUB_CATCH_SYSCALLS in self.enabled_features:
             cmd = b"QCatchSyscalls:1"
             self.send_stub_packet(self.stub, cmd)
             self.receive_stub_packet(self.stub, cmd)
