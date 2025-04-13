@@ -138,7 +138,7 @@ class GdbStubInterface(DebuggingInterface):
         if libcontext.qemu_path != "default":
             self.qemu_path = str(
                 Path(libcontext.qemu_path).resolve())
-            print(f"Custom QEMU location detected: {self.qemu_path}")
+            liblog.debugger(f"Custom QEMU location detected: {self.qemu_path}")
 
         # Disable namespace processing to avoid issues
         self.parser = expat.ParserCreate('ascii', None)
