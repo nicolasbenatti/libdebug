@@ -28,6 +28,7 @@ from libdebug.data.register_holder import GdbRegisterHolder
 from libdebug.gdbstub.gdbstub_constants import (
     GDBStubCommand,
     GDBStubFeature,
+    GDBSTUB_DEFAULT_PORT,
     GDBSTUB_MAIN_TARGET_DESCRIPTION_FILENAME,
     GDBSTUB_MAX_PAYLOAD_LEN,
     GDBSTUB_ORDINARY_PACKET_INITIAL_BYTE,
@@ -98,6 +99,9 @@ class GdbStubInterface(DebuggingInterface):
 
     parser: expat.XMLParserType = None
     """Target description file parser."""
+
+    gdbstub_port: int = GDBSTUB_DEFAULT_PORT
+    """gdbstub listening port for the current session."""
 
     qemu_path: str = QEMU_LOCATION
     """QEMU binary location for the current session.
@@ -380,7 +384,7 @@ class GdbStubInterface(DebuggingInterface):
 
         argv = self.context.argv
         env = self.context.env
-        env["QEMU_GDB"] = str(self.GDB_STUB_PORT)
+        env["QEMU_GDB"] = str(self.gdbstub_port)
 
         liblog.debugger("Running %s", argv)
 
@@ -422,7 +426,7 @@ class GdbStubInterface(DebuggingInterface):
 
         # Connect to the stub
         self.stub = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.stub.connect(("localhost", self.GDB_STUB_PORT))
+        self.stub.connect(("localhost", self.gdbstub_port))
         stub_info = self.stub.getpeername()
         print(f"Connected to GDB stub at %s:%s" % (stub_info[0], stub_info[1]))
         send_ack(self.stub)
@@ -476,7 +480,7 @@ class GdbStubInterface(DebuggingInterface):
 
         self.stub = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
-            self.stub.connect(("localhost", self.GDB_STUB_PORT))
+            self.stub.connect(("localhost", self.gdbstub_port))
         except Exception as e:
             raise Exception("Error when connecting to GDB stub, is QEMU running?")
         stub_info = self.stub.getpeername()
