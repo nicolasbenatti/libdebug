@@ -66,7 +66,7 @@ class Amd64GdbHardwareBreakpointManager(GdbHardwareBreakpointManager):
 
         cmd = b'z1,'+int2hexbstr(bp.address)+b','+len
         self.interface.send_stub_packet(self.interface.stub, cmd)
-        resp = self.interface.receive_stub_packet(cmd, self.context.debugging_interface.stub)
+        resp, _ = self.interface.receive_stub_packet(self.interface.stub, cmd)
 
         if resp == b'OK':
             liblog.debugger(f"Removed hardware breakpoint at address %#x" % bp.address) 
