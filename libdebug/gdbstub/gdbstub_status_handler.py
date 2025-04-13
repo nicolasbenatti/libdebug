@@ -111,10 +111,10 @@ class GdbStubStatusHandler:
         for thread in self.context.threads:
             if stub_reply.msgtype == ord(b'T'):
                 if stub_reply.is_syscall_trap:
-                    print("the program stopped at a syscall")
+                    liblog.debugger("The program stopped at a syscall")
                     repeat |= self._handle_syscall(thread.thread_id, stub_reply.syscall_number)
                 elif stub_reply.is_breakpoint_trap:
-                    print("the program stopped at a breakpoint")
+                    liblog.debugger("The program stopped at a breakpoint")
                     repeat |= self._handle_trap(thread.thread_id)
         
         return repeat

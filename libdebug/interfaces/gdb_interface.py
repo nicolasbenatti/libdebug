@@ -478,7 +478,7 @@ class GdbStubInterface(DebuggingInterface):
         
         self.qemu_pid = self._get_qemu_instance_pid(port)
         self.context.pipe_manager = None
-        print(f"PID of qemu instance is {self._get_qemu_instance_pid(port)}")
+        liblog.debugger(f"PID of qemu instance is {self._get_qemu_instance_pid(port)}")
 
         # Enable supported features
         cmd = b'qSupported:'+get_supported_features()+b'swbreak+;hwbreak+'
@@ -669,7 +669,7 @@ class GdbStubInterface(DebuggingInterface):
         if continue_to_entry_point:
             # Now that the process is running, we must continue until we have reached the entry point
             entry_point = get_entry_point(self.executable_path)
-            print(f"ENTRY POINT IS AT {entry_point:0x}")
+            liblog.debugger(f"Entry point of binary is: {entry_point:0x}")
 
             # For PIE binaries, the entry point is a relative address
             #entry_point = normalize_and_validate_address(entry_point, self.maps())
