@@ -40,6 +40,7 @@ from libdebug.gdbstub.register_parser import RegisterInfo
 from libdebug.data.syscall_hook import SyscallHook
 from libdebug.interfaces.debugging_interface import DebuggingInterface
 from libdebug.liblog import liblog
+from libdebug.utils.libcontext import libcontext
 from libdebug.state.debugging_context import (
     context_extend_from,
     link_context,
@@ -62,8 +63,7 @@ from libdebug.utils.pipe_manager import PipeManager
 from libdebug.gdbstub.gdbstub_callbacks_helper import gdb_stub_callback_provider
 
 QEMU_LOCATION = str(
-    (Path("/") / "usr" / "bin" / "qemu-x86_64").resolve()
-)
+    (Path("/") / "usr" / "bin" / "qemu-x86_64").resolve())
 
 if hasattr(os, "posix_spawn"):
     from os import posix_spawn, POSIX_SPAWN_CLOSE, POSIX_SPAWN_DUP2
@@ -99,8 +99,10 @@ class GdbStubInterface(DebuggingInterface):
     parser: expat.XMLParserType = None
     """Target description file parser."""
 
-    GDB_STUB_PORT: int
-    """Default port of the QEMU gdbstub."""
+    qemu_path: str = QEMU_LOCATION
+    """QEMU binary location for the current session.
+    This is ignored in attached mode.
+    """
 
     syscall_hooks_enabled: bool
     """Whether syscall hooks are enabled for the current context or not."""
@@ -128,7 +130,11 @@ class GdbStubInterface(DebuggingInterface):
 
         self.context = provide_context(self)
 
-        self.GDB_STUB_PORT = 5000
+        # Setup interaction with QEMU
+        if libcontext.qemu_path != "default":
+            self.qemu_path = str(
+                Path(libcontext.qemu_path).resolve())
+            print(f"Custom QEMU location detected: {self.qemu_path}")
 
         # Disable namespace processing to avoid issues
         self.parser = expat.ParserCreate('ascii', None)
@@ -389,8 +395,8 @@ class GdbStubInterface(DebuggingInterface):
         tty.setraw(self.stderr_read)
 
         child_pid = posix_spawn(
-            QEMU_LOCATION,
-            [QEMU_LOCATION] + argv,
+            self.qemu_path,
+            [self.qemu_path] + argv,
             env,
             file_actions=[
                 (POSIX_SPAWN_CLOSE, self.stdin_write),

@@ -19,6 +19,7 @@ from libdebug.data.memory_view import MemoryView
 from libdebug.data.syscall_hook import SyscallHook
 from libdebug.interfaces.debugging_interface import DebuggingInterface
 from libdebug.interfaces.interface_helper import provide_debugging_interface
+from libdebug.interfaces.interfaces import AvailableInterfaces
 from libdebug.liblog import liblog
 from libdebug.state.debugging_context import (
     DebuggingContext,
@@ -722,6 +723,8 @@ class _InternalDebugger:
 
 def debugger(
     argv: str | list[str] = [],
+    backend: str = "ptrace",
+    qemu_path: str | None = None,
     enable_aslr: bool = False,
     env: dict[str, str] | None = None,
     continue_to_binary_entrypoint: bool = True,
@@ -731,6 +734,8 @@ def debugger(
 
     Args:
         argv (str | list[str], optional): The location of the binary to debug, and any additional arguments to pass to it.
+        backend (str): The debugging backend to use.
+        qemu_path (str): Path of a QEMU installation different from what the system offers (NOTE: ignored if not using `gdbstub` backend).
         enable_aslr (bool, optional): Whether to enable ASLR. Defaults to False.
         env (dict[str, str], optional): The environment variables to use. Defaults to the same environment of the debugging script.
         continue_to_binary_entrypoint (bool, optional): Whether to automatically continue to the binary entrypoint. Defaults to True.
@@ -756,6 +761,11 @@ def debugger(
     debugging_context.aslr_enabled = enable_aslr
     debugging_context.autoreach_entrypoint = continue_to_binary_entrypoint
     debugging_context.auto_interrupt_on_command = auto_interrupt_on_command
+    if backend in [backend for backend in AvailableInterfaces]:
+        libcontext.backend = backend
+    else:
+        raise RuntimeError(f"Unsupported debugging backend: \'{backend}\'")
+    libcontext.qemu_path = qemu_path if qemu_path is not None else "default"
 
     debugger._post_init_()
 
