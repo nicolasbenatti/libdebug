@@ -724,7 +724,7 @@ class _InternalDebugger:
 def debugger(
     argv: str | list[str] = [],
     backend: str = "ptrace",
-    qemu_path: str | None = None,
+    qemu_path: str | None = "default",
     enable_aslr: bool = False,
     env: dict[str, str] | None = None,
     continue_to_binary_entrypoint: bool = True,
@@ -765,7 +765,11 @@ def debugger(
         libcontext.backend = backend
     else:
         raise RuntimeError(f"Unsupported debugging backend: \'{backend}\'")
-    libcontext.qemu_path = qemu_path if qemu_path is not None else "default"
+
+    if backend == AvailableInterfaces.GDB:
+        if qemu_path != "default" and not os.path.isfile(qemu_path):
+            raise ValueError("ERROR: custom QEMU path is invalid")
+        libcontext.qemu_path = qemu_path
 
     debugger._post_init_()
 
