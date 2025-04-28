@@ -58,13 +58,6 @@ class GdbStubStatusHandler:
         """
         thread = self.context.get_thread_by_id(thread_id)
 
-        """ if not hasattr(thread, "syscall_number"):
-            # This is another spurious trap, we don't know what to do with it
-            print("CIAONE")
-            return False """
-
-        #syscall_number = thread.syscall_number
-
         if syscall_number not in self.context.syscall_hooks:
             # This is a syscall we don't care about
             # Resume the execution

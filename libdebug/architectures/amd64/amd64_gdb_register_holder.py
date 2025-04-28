@@ -189,7 +189,6 @@ class Amd64GdbRegisterHolder(GdbRegisterHolder):
         setattr(target_class, "instruction_pointer", get_property_64("rip"))
 
         # setup generic syscall properties
-        setattr(target_class, "syscall_number", get_property_64("orig_rax"))
         setattr(target_class, "syscall_return", get_property_64("rax"))
         setattr(target_class, "syscall_arg0", get_property_64("rdi"))
         setattr(target_class, "syscall_arg1", get_property_64("rsi"))
