@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-import json
 import psutil
 from queue import Queue
 from subprocess import Popen
